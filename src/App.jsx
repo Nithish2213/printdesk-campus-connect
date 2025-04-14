@@ -23,7 +23,7 @@ import Profile from "./pages/student/Profile.jsx";
 // Xerox Pages
 import XeroxLayout from "./pages/xerox/XeroxLayout.jsx";
 import Orders from "./pages/xerox/Orders.jsx";
-import History as XeroxHistory from "./pages/xerox/History.jsx";
+import { default as XeroxHistory } from "./pages/xerox/History.jsx";
 import Completed from "./pages/xerox/Completed.jsx";
 
 // Admin Pages
