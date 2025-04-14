@@ -1,7 +1,7 @@
 
 import { Toaster } from "sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { PrintProvider } from "./contexts/PrintContext";
 
@@ -12,22 +12,22 @@ import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
 
 // Student Pages
-import StudentLayout from "./pages/student/StudentLayout";
-import Upload from "./pages/student/Upload";
-import Payment from "./pages/student/Payment";
-import Track from "./pages/student/Track";
-import History from "./pages/student/History";
-import Profile from "./pages/student/Profile";
+import StudentLayout from "./pages/student/StudentLayout.jsx";
+import Upload from "./pages/student/Upload.jsx";
+import Payment from "./pages/student/Payment.jsx";
+import Track from "./pages/student/Track.jsx";
+import History from "./pages/student/History.jsx";
+import Profile from "./pages/student/Profile.jsx";
 
 // Xerox Pages
-import XeroxLayout from "./pages/xerox/XeroxLayout";
-import Orders from "./pages/xerox/Orders";
+import XeroxLayout from "./pages/xerox/XeroxLayout.jsx";
+import Orders from "./pages/xerox/Orders.jsx";
 
 // Admin Pages
-import AdminLayout from "./pages/admin/AdminLayout";
-import StaffManagement from "./pages/admin/StaffManagement";
-import RevenueAnalytics from "./pages/admin/RevenueAnalytics";
-import InventoryManagement from "./pages/admin/InventoryManagement";
+import AdminLayout from "./pages/admin/AdminLayout.jsx";
+import StaffManagement from "./pages/admin/StaffManagement.jsx";
+import RevenueAnalytics from "./pages/admin/RevenueAnalytics.jsx";
+import InventoryManagement from "./pages/admin/InventoryManagement.jsx";
 
 const queryClient = new QueryClient();
 

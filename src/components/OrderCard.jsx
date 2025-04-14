@@ -1,102 +1,103 @@
 
 import React from 'react';
 import { usePrint } from '../contexts/PrintContext';
+import { File, CheckCircle, Clock, DollarSign } from 'lucide-react';
 
-const OrderCard = ({ order, showProgress = false, showActions = false }) => {
-  const { updateOrderProgress } = usePrint();
-
-  const formatDate = (dateString) => {
-    const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-    return new Date(dateString).toLocaleDateString(undefined, options);
+const OrderCard = ({ order, showProgress = false }) => {
+  // Format file size to readable format
+  const formatFileSize = (bytes) => {
+    if (bytes < 1024) return bytes + ' bytes';
+    else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    else return (bytes / 1048576).toFixed(1) + ' MB';
   };
 
-  const handleProgressUpdate = (progress) => {
-    updateOrderProgress(order.id, progress);
+  // Format date to readable format
+  const formatDate = (dateString) => {
+    const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+    return new Date(dateString).toLocaleString('en-US', options);
+  };
+
+  // Get status color
+  const getStatusColor = (status) => {
+    if (status.includes('Paid') || status.includes('Ready')) return 'text-green-600';
+    if (status.includes('Pending')) return 'text-yellow-600';
+    if (status.includes('Processing')) return 'text-blue-600';
+    return 'text-gray-600';
+  };
+
+  // Get status icon
+  const getStatusIcon = (status) => {
+    if (status.includes('Paid') || status.includes('Ready')) return <CheckCircle className="h-5 w-5" />;
+    if (status.includes('Pending')) return <DollarSign className="h-5 w-5" />;
+    if (status.includes('Processing')) return <Clock className="h-5 w-5" />;
+    return <File className="h-5 w-5" />;
   };
 
   return (
-    <div className="border rounded-lg p-4 mb-4 bg-white shadow-sm">
-      <div className="flex justify-between items-start mb-2">
-        <div>
-          <h3 className="font-medium">{order.fileName}</h3>
-          <p className="text-sm text-gray-500">Order #{order.orderNumber}</p>
-        </div>
-        <span className={`px-2 py-1 text-xs rounded-full ${
-          order.status.includes('Ready') ? 'bg-green-100 text-green-800' :
-          order.status.includes('Processing') ? 'bg-blue-100 text-blue-800' :
-          order.status.includes('Paid') ? 'bg-purple-100 text-purple-800' :
-          'bg-yellow-100 text-yellow-800'
-        }`}>
-          {order.status}
-        </span>
-      </div>
-      
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-3 text-sm">
-        <div>
-          <span className="text-gray-500">Copies:</span> {order.copies}
-        </div>
-        <div>
-          <span className="text-gray-500">Print Type:</span> {order.printType}
-        </div>
-        <div>
-          <span className="text-gray-500">Color:</span> {order.isColorPrint ? 'Yes' : 'No'}
-        </div>
-        <div>
-          <span className="text-gray-500">Double Sided:</span> {order.isDoubleSided ? 'Yes' : 'No'}
-        </div>
-        <div className="col-span-2">
-          <span className="text-gray-500">Date:</span> {formatDate(order.dateCreated)}
-        </div>
-        {order.message && (
-          <div className="col-span-2 mt-2">
-            <p className="text-gray-500 text-xs">Note: {order.message}</p>
-          </div>
-        )}
-      </div>
-      
-      {showProgress && order.paid && (
-        <div className="mt-4">
-          <div className="flex justify-between mb-1">
-            <span className="text-sm font-medium">Progress</span>
-            <span className="text-sm text-gray-500">{order.progress}%</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div 
-              className="bg-primary h-2.5 rounded-full" 
-              style={{ width: `${order.progress}%` }}
-            ></div>
+    <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+      <div className="p-4 md:p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center">
+            <div className="bg-gray-100 p-3 rounded-full mr-4">
+              <File className="h-6 w-6 text-primary" />
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-medium">{order.fileName}</h3>
+              <p className="text-sm text-gray-500">
+                {formatFileSize(order.fileSize)} • {formatDate(order.dateCreated)}
+              </p>
+            </div>
           </div>
           
-          {showActions && (
-            <div className="flex justify-between mt-4">
-              <button 
-                onClick={() => handleProgressUpdate(25)}
-                className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm"
-              >
-                Start
-              </button>
-              <button 
-                onClick={() => handleProgressUpdate(50)}
-                className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm"
-              >
-                50%
-              </button>
-              <button 
-                onClick={() => handleProgressUpdate(75)}
-                className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm"
-              >
-                75%
-              </button>
-              <button 
-                onClick={() => handleProgressUpdate(100)}
-                className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm"
-              >
-                Complete
-              </button>
+          {order.orderNumber && (
+            <div className="bg-gray-100 px-3 py-2 rounded-md">
+              <span className="text-xs font-medium">ORDER #{order.orderNumber}</span>
             </div>
           )}
         </div>
-      )}
+        
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <h4 className="text-sm font-medium text-gray-500 mb-1">Print Details</h4>
+            <ul className="text-sm space-y-1">
+              <li><span className="text-gray-600">Type:</span> {order.printType}</li>
+              <li><span className="text-gray-600">Copies:</span> {order.copies}</li>
+              <li><span className="text-gray-600">Color:</span> {order.isColorPrint ? 'Yes' : 'No'}</li>
+              <li><span className="text-gray-600">Double-sided:</span> {order.isDoubleSided ? 'Yes' : 'No'}</li>
+            </ul>
+          </div>
+          
+          <div>
+            <h4 className="text-sm font-medium text-gray-500 mb-1">Status</h4>
+            <div className={`flex items-center gap-1 ${getStatusColor(order.status)}`}>
+              {getStatusIcon(order.status)}
+              <span className="font-medium">{order.status}</span>
+            </div>
+            
+            {showProgress && order.progress < 100 && order.progress > 0 && (
+              <div className="mt-2">
+                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-primary" 
+                    style={{ width: `${order.progress}%` }}
+                  ></div>
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {order.progress}% complete
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {order.message && (
+          <div className="mt-4 p-3 bg-gray-50 rounded-md text-sm">
+            <h4 className="font-medium mb-1">Message:</h4>
+            <p className="text-gray-600">{order.message}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
