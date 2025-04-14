@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { usePrint } from '../../contexts/PrintContext';
-import { Calendar, CheckCircle, Clock, TruckDelivery, Search } from 'lucide-react';
+import { Calendar, CheckCircle, Clock, Truck, Search } from 'lucide-react';
 import { 
   Tabs, 
   TabsContent, 
@@ -37,7 +37,7 @@ const History = () => {
     if (status === 'Ready for Pickup') return <CheckCircle className="h-5 w-5 text-green-500" />;
     if (status === 'Processing') return <Clock className="h-5 w-5 text-blue-500" />;
     if (status === 'Completed') return <CheckCircle className="h-5 w-5 text-purple-500" />;
-    if (status === 'Delivered') return <TruckDelivery className="h-5 w-5 text-indigo-500" />;
+    if (status === 'Delivered') return <Truck className="h-5 w-5 text-indigo-500" />;
     return <Clock className="h-5 w-5 text-gray-500" />;
   };
 
