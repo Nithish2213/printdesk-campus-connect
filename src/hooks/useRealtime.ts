@@ -29,9 +29,7 @@ export const useRealtime = (
           callback(payload);
         }
       )
-      .subscribe((status) => {
-        console.log(`Realtime subscription status for ${table}: ${status}`);
-      });
+      .subscribe();
 
     // Clean up the subscription when the component unmounts
     return () => {
