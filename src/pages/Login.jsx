@@ -20,6 +20,20 @@ const Login = () => {
       toast.error("Please enter both email and password");
       return;
     }
+
+    // Predefined admin and xerox accounts
+    const predefinedAccounts = {
+      admin: {
+        email: 'admin@gmail.com',
+        password: 'admin123',
+        role: 'admin'
+      },
+      xerox: {
+        email: 'xerox@gmail.com',
+        password: 'xerox123',
+        role: 'xerox'
+      }
+    };
     
     setLoading(true);
     
@@ -92,15 +106,12 @@ const Login = () => {
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
-        </div>
-        
-        <div className="text-center mt-6">
-          <p className="text-gray-600">
-            Don't have an account?{' '}
-            <Link to="/signup" className="text-primary hover:underline">
-              Sign up
-            </Link>
-          </p>
+          
+          {/* Display predefined account info for testing */}
+          <div className="mt-4 text-sm text-gray-500">
+            <p>Admin login: admin@gmail.com / admin123</p>
+            <p>Xerox login: xerox@gmail.com / xerox123</p>
+          </div>
         </div>
       </div>
     </div>

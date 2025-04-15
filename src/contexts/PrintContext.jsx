@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { toast } from "sonner";
@@ -167,6 +166,16 @@ export const PrintProvider = ({ children }) => {
     setInventory(prev => prev.filter(item => item.id !== id));
   };
 
+  const updateOrderStatus = (orderId, newStatus) => {
+    setOrders(prevOrders => 
+      prevOrders.map(order => 
+        order.id === orderId 
+          ? { ...order, status: newStatus } 
+          : order
+      )
+    );
+  };
+
   const value = {
     orders,
     serverActive,
@@ -182,7 +191,8 @@ export const PrintProvider = ({ children }) => {
     deleteStaffMember,
     addInventoryItem,
     updateInventoryItem,
-    deleteInventoryItem
+    deleteInventoryItem,
+    updateOrderStatus,
   };
 
   return (
