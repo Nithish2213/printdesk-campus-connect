@@ -19,7 +19,7 @@ export const useRealtime = (
     const channel = supabase
       .channel(channelId)
       .on(
-        'postgres_changes' as 'broadcast', // Type assertion to bypass type checking
+        'postgres_changes', 
         { 
           event: event, 
           schema: 'public', 
