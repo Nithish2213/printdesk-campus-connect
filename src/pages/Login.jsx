@@ -13,6 +13,20 @@ const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  // Predefined admin and xerox accounts
+  const predefinedAccounts = {
+    admin: {
+      email: 'admin@gmail.com',
+      password: 'admin123',
+      role: 'admin'
+    },
+    xerox: {
+      email: 'xerox@gmail.com',
+      password: 'xerox123',
+      role: 'xerox'
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -20,24 +34,39 @@ const Login = () => {
       toast.error("Please enter both email and password");
       return;
     }
-
-    // Predefined admin and xerox accounts
-    const predefinedAccounts = {
-      admin: {
-        email: 'admin@gmail.com',
-        password: 'admin123',
-        role: 'admin'
-      },
-      xerox: {
-        email: 'xerox@gmail.com',
-        password: 'xerox123',
-        role: 'xerox'
-      }
-    };
     
     setLoading(true);
     
     try {
+      // Check for predefined accounts first
+      if (email === predefinedAccounts.admin.email && password === predefinedAccounts.admin.password) {
+        // Mock login for admin
+        const adminUser = {
+          email: predefinedAccounts.admin.email,
+          name: 'Admin User',
+          role: predefinedAccounts.admin.role
+        };
+        
+        // Redirect to admin page
+        navigate('/admin/staff');
+        toast.success(`Welcome back, Admin!`);
+        return;
+      } 
+      else if (email === predefinedAccounts.xerox.email && password === predefinedAccounts.xerox.password) {
+        // Mock login for xerox
+        const xeroxUser = {
+          email: predefinedAccounts.xerox.email,
+          name: 'Xerox Operator',
+          role: predefinedAccounts.xerox.role
+        };
+        
+        // Redirect to xerox page
+        navigate('/xerox/orders');
+        toast.success(`Welcome back, Xerox Operator!`);
+        return;
+      }
+      
+      // If not a predefined account, try regular login via Supabase
       const user = await login(email, password);
       
       // Redirect based on user role

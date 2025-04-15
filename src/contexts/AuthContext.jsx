@@ -59,6 +59,28 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
+    // Check predefined accounts first (handled in Login.jsx)
+    if (email === 'admin@gmail.com' && password === 'admin123') {
+      const adminUser = {
+        email: 'admin@gmail.com',
+        name: 'Admin User',
+        role: 'admin'
+      };
+      setCurrentUser(adminUser);
+      return adminUser;
+    } 
+    
+    if (email === 'xerox@gmail.com' && password === 'xerox123') {
+      const xeroxUser = {
+        email: 'xerox@gmail.com',
+        name: 'Xerox Operator',
+        role: 'xerox'
+      };
+      setCurrentUser(xeroxUser);
+      return xeroxUser;
+    }
+
+    // Regular Supabase authentication
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
