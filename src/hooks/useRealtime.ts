@@ -3,9 +3,11 @@ import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
+type RealtimeEvent = 'INSERT' | 'UPDATE' | 'DELETE';
+
 export const useRealtime = (
   table: string,
-  event: 'INSERT' | 'UPDATE' | 'DELETE',
+  event: RealtimeEvent,
   callback: (payload: RealtimePostgresChangesPayload<any>) => void
 ) => {
   useEffect(() => {
