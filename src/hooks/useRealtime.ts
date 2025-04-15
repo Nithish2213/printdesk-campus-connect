@@ -14,16 +14,16 @@ export const useRealtime = (
     // Create a channel specifically for this table and event
     const channelId = `${table}-${event}-changes`;
     
-    // Create a channel with the correct configuration for Supabase JS v2
+    // Create and subscribe to the channel with the correct configuration
     const channel = supabase
       .channel(channelId)
       .on(
         'postgres_changes', 
-        {
-          event: event,
-          schema: 'public',
-          table: table
-        },
+        { 
+          event: event, 
+          schema: 'public', 
+          table: table 
+        }, 
         callback
       )
       .subscribe((status) => {
