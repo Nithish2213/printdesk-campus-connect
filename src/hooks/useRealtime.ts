@@ -12,7 +12,7 @@ export const useRealtime = (
     const channel = supabase
       .channel('db-changes')
       .on(
-        'postgres_changes', // This is the event source - not the event type
+        'postgres_changes',
         {
           event,
           schema: 'public',
