@@ -1,11 +1,12 @@
 
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 export const useRealtime = (
   table: string,
   event: 'INSERT' | 'UPDATE' | 'DELETE',
-  callback: (payload: any) => void
+  callback: (payload: RealtimePostgresChangesPayload<any>) => void
 ) => {
   useEffect(() => {
     const channel = supabase
