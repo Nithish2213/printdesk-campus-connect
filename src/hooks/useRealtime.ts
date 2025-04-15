@@ -12,9 +12,17 @@ export const useRealtime = (
     // Create a channel with a specific name for database changes
     const channel = supabase
       .channel('db-changes')
-      .on('broadcast', { event: 'postgres_changes', schema: 'public', table: table, filter: `event=eq.${event}` }, (payload) => {
-        callback(payload as unknown as RealtimePostgresChangesPayload<any>);
-      })
+      .on(
+        'postgres_changes',
+        {
+          event: event,
+          schema: 'public',
+          table: table
+        },
+        (payload) => {
+          callback(payload);
+        }
+      )
       .subscribe();
 
     // Clean up the subscription when the component unmounts
