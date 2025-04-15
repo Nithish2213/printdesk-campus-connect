@@ -11,9 +11,12 @@ export const useRealtime = (
   useEffect(() => {
     const channel = supabase
       .channel('db-changes')
-      .on(
-        'postgres_changes',
-        { event, schema: 'public', table },
+      .on('postgres_changes', 
+        {
+          event: event,
+          schema: 'public',
+          table: table,
+        },
         callback
       )
       .subscribe();
