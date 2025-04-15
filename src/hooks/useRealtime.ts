@@ -9,9 +9,11 @@ export const useRealtime = (
   callback: (payload: RealtimePostgresChangesPayload<any>) => void
 ) => {
   useEffect(() => {
-    // Create a channel with a specific name for database changes
+    // Create a channel specifically for this table and event
+    const channelId = `${table}-${event}-changes`;
+    
     const channel = supabase
-      .channel('db-changes')
+      .channel(channelId)
       .on(
         'postgres_changes',
         {
@@ -23,7 +25,9 @@ export const useRealtime = (
           callback(payload);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`Realtime subscription status for ${table}: ${status}`);
+      });
 
     // Clean up the subscription when the component unmounts
     return () => {
