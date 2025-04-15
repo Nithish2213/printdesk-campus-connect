@@ -14,12 +14,11 @@ export const useRealtime = (
     // Create a channel specifically for this table and event
     const channelId = `${table}-${event}-changes`;
     
-    // Create a channel with the correct configuration
+    // Create a channel
     const channel = supabase
       .channel(channelId)
-      .on(
-        'postgres_changes', 
-        { 
+      .on('postgres_changes', 
+        {
           event: event,
           schema: 'public',
           table: table
