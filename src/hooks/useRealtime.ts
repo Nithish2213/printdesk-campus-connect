@@ -24,9 +24,7 @@ export const useRealtime = (
           schema: 'public',
           table: table
         },
-        (payload) => {
-          callback(payload);
-        }
+        callback
       )
       .subscribe((status) => {
         console.log(`Realtime subscription status for ${table}: ${status}`);
