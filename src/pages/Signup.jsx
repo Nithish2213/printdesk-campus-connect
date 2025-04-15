@@ -21,13 +21,23 @@ const Signup = () => {
       toast.error("Please fill in all fields");
       return;
     }
+
+    if (!email.endsWith('@kgkite.ac.in')) {
+      toast.error("Please use your college email address (ending with @kgkite.ac.in)");
+      return;
+    }
+    
+    if (password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
     
     setLoading(true);
     
     try {
       await signup(name, rollNumber, email, password);
-      navigate('/student/upload');
-      toast.success("Account created successfully!");
+      toast.success("Please check your email to verify your account");
+      navigate('/login');
     } catch (error) {
       toast.error(error.message || "Failed to create account");
     } finally {
