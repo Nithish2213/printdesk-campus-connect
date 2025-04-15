@@ -13,20 +13,6 @@ const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  // Predefined admin and xerox accounts
-  const predefinedAccounts = {
-    admin: {
-      email: 'admin@gmail.com',
-      password: 'admin123',
-      role: 'admin'
-    },
-    xerox: {
-      email: 'xerox@gmail.com',
-      password: 'xerox123',
-      role: 'xerox'
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -38,35 +24,6 @@ const Login = () => {
     setLoading(true);
     
     try {
-      // Check for predefined accounts first
-      if (email === predefinedAccounts.admin.email && password === predefinedAccounts.admin.password) {
-        // Mock login for admin
-        const adminUser = {
-          email: predefinedAccounts.admin.email,
-          name: 'Admin User',
-          role: predefinedAccounts.admin.role
-        };
-        
-        // Redirect to admin page
-        navigate('/admin/staff');
-        toast.success(`Welcome back, Admin!`);
-        return;
-      } 
-      else if (email === predefinedAccounts.xerox.email && password === predefinedAccounts.xerox.password) {
-        // Mock login for xerox
-        const xeroxUser = {
-          email: predefinedAccounts.xerox.email,
-          name: 'Xerox Operator',
-          role: predefinedAccounts.xerox.role
-        };
-        
-        // Redirect to xerox page
-        navigate('/xerox/orders');
-        toast.success(`Welcome back, Xerox Operator!`);
-        return;
-      }
-      
-      // If not a predefined account, try regular login via Supabase
       const user = await login(email, password);
       
       // Redirect based on user role
@@ -135,12 +92,15 @@ const Login = () => {
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
-          
-          {/* Display predefined account info for testing */}
-          <div className="mt-4 text-sm text-gray-500">
-            <p>Admin login: admin@gmail.com / admin123</p>
-            <p>Xerox login: xerox@gmail.com / xerox123</p>
-          </div>
+        </div>
+        
+        <div className="text-center mt-6">
+          <p className="text-gray-600">
+            Don't have an account?{' '}
+            <Link to="/signup" className="text-primary hover:underline">
+              Sign up
+            </Link>
+          </p>
         </div>
       </div>
     </div>

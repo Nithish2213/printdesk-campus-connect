@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { usePrint } from '../../contexts/PrintContext';
 import { Printer, ChevronDown, Calendar, Clock, Check, X } from 'lucide-react';
@@ -107,18 +108,9 @@ const Orders = () => {
     toast.success("Print job sent to printer");
   };
 
-  const handleUpdateStatus = async (orderId, newStatus) => {
-    try {
-      await updateOrderStatus(orderId, newStatus);
-      toast.success(`Order status updated to ${newStatus}`);
-      
-      // If the order is marked as Delivered or Completed, close the details view
-      if (newStatus === 'Delivered' || newStatus === 'Completed') {
-        setSelectedOrder(null);
-      }
-    } catch (error) {
-      toast.error("Failed to update order status");
-    }
+  const handleUpdateStatus = (orderId, newStatus) => {
+    updateOrderStatus(orderId, newStatus);
+    toast.success(`Order status updated to ${newStatus}`);
   };
 
   // Format file size to readable format
