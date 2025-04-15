@@ -2,9 +2,17 @@
 import React from 'react';
 import { usePrint } from '../../contexts/PrintContext';
 import OrderCard from '../../components/OrderCard';
+import { useRealtime } from '../../hooks/useRealtime';
 
 const Track = () => {
-  const { orders } = usePrint();
+  const { orders, updateOrderStatus } = usePrint();
+  
+  // Set up real-time updates for order status changes
+  useRealtime('orders', 'UPDATE', (payload) => {
+    if (payload.new && payload.new.id) {
+      updateOrderStatus(payload.new.id, payload.new.status);
+    }
+  });
   
   // Get only paid orders for current user
   const userPaidOrders = orders.filter(order => 

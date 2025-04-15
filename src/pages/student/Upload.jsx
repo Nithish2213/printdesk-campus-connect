@@ -1,42 +1,22 @@
-
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePrint } from '../../contexts/PrintContext';
-import { Upload as UploadIcon, Plus, Minus } from 'lucide-react';
 import { toast } from "sonner";
+import { MultipleFileUpload } from '../../components/MultipleFileUpload';
+import { supabase } from "@/integrations/supabase/client";
+import { Upload as UploadIcon, Plus, Minus } from 'lucide-react';
 
 const Upload = () => {
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [printType, setPrintType] = useState('Normal Xerox');
   const [copies, setCopies] = useState(1);
   const [colorPrint, setColorPrint] = useState(false);
   const [doubleSided, setDoubleSided] = useState(false);
   const [message, setMessage] = useState('');
-  const fileInputRef = useRef(null);
   const { submitOrder, serverActive } = usePrint();
   const navigate = useNavigate();
 
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    
-    if (!selectedFile) return;
-    
-    // Check file type - only allow PDFs
-    if (selectedFile.type !== 'application/pdf') {
-      toast.error('Please upload PDF files only');
-      return;
-    }
-    
-    // Check file size (max 10MB)
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      toast.error('File size should be less than 10MB');
-      return;
-    }
-    
-    setFile(selectedFile);
-  };
-
-  const handleDrop = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!serverActive) {
@@ -44,53 +24,53 @@ const Upload = () => {
       return;
     }
     
-    const droppedFile = e.dataTransfer.files[0];
-    
-    if (!droppedFile) return;
-    
-    // Check file type - only allow PDFs
-    if (droppedFile.type !== 'application/pdf') {
-      toast.error('Please upload PDF files only');
+    if (files.length === 0) {
+      toast.error('Please upload at least one file');
       return;
     }
-    
-    // Check file size (max 10MB)
-    if (droppedFile.size > 10 * 1024 * 1024) {
-      toast.error('File size should be less than 10MB');
-      return;
-    }
-    
-    setFile(droppedFile);
-  };
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
+    try {
+      // Upload all files to Supabase storage
+      const uploadedFiles = await Promise.all(
+        files.map(async (file) => {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${Math.random().toString(36).substring(7)}.${fileExt}`;
+          const filePath = `${Date.now()}_${fileName}`;
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    if (!serverActive) {
-      toast.error("Server is offline. Document uploads are disabled.");
-      return;
-    }
-    
-    if (!file) {
-      toast.error('Please upload a file');
-      return;
-    }
-    
-    const order = submitOrder(
-      file,
-      printType,
-      copies,
-      colorPrint,
-      doubleSided,
-      message
-    );
-    
-    if (order) {
-      navigate(`/student/payment/${order.id}`);
+          const { data, error } = await supabase.storage
+            .from('documents')
+            .upload(filePath, file);
+
+          if (error) throw error;
+
+          return {
+            name: file.name,
+            path: filePath,
+            size: file.size
+          };
+        })
+      );
+
+      // Create orders for each file
+      const orders = uploadedFiles.map(file => {
+        return submitOrder(
+          file,
+          printType,
+          copies,
+          colorPrint,
+          doubleSided,
+          message
+        );
+      });
+
+      // Navigate to payment page for the first order
+      // (you might want to handle multiple orders differently)
+      if (orders[0]) {
+        navigate(`/student/payment/${orders[0].id}`);
+      }
+    } catch (error) {
+      toast.error('Error uploading files');
+      console.error('Upload error:', error);
     }
   };
 
@@ -101,7 +81,7 @@ const Upload = () => {
   const decrementCopies = () => {
     setCopies(prev => Math.max(prev - 1, 1));
   };
-
+  
   return (
     <div className="max-w-3xl mx-auto">
       <h2 className="text-2xl font-bold mb-6">Submit Print Order</h2>
@@ -109,56 +89,10 @@ const Upload = () => {
       <div className="bg-white rounded-lg shadow-sm border p-6">
         <form onSubmit={handleSubmit}>
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Upload PDF Files</label>
-            <div 
-              className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center"
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-            >
-              {file ? (
-                <div className="flex flex-col items-center">
-                  <div className="text-green-600 mb-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <p className="text-lg font-medium">{file.name}</p>
-                  <p className="text-sm text-gray-500 mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                  <button 
-                    type="button" 
-                    className="mt-4 text-primary hover:text-indigo-700 text-sm font-medium"
-                    onClick={() => setFile(null)}
-                  >
-                    Replace file
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center">
-                  <UploadIcon className="h-12 w-12 text-gray-400 mb-3" />
-                  <p className="text-primary text-lg font-medium mb-1">Upload a file</p>
-                  <p className="text-sm text-gray-500 mb-4">or drag and drop</p>
-                  <p className="text-xs text-gray-500">PDF up to 10MB</p>
-                  
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    accept=".pdf"
-                    className="hidden"
-                    disabled={!serverActive}
-                  />
-                  
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current.click()}
-                    className="mt-4 px-4 py-2 bg-primary text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
-                    disabled={!serverActive}
-                  >
-                    Browse Files
-                  </button>
-                </div>
-              )}
-            </div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Upload PDF Files
+            </label>
+            <MultipleFileUpload onFilesChange={setFiles} />
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -248,7 +182,7 @@ const Upload = () => {
           
           <button
             type="submit"
-            disabled={!file || !serverActive}
+            disabled={!files || !serverActive}
             className="w-full bg-primary hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-md transition duration-150 disabled:opacity-50"
           >
             Submit Print Order

@@ -1,13 +1,35 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { usePrint } from '../../contexts/PrintContext';
 import OrderCard from '../../components/OrderCard';
+import DocumentViewer from '../../components/DocumentViewer';
+import { Eye } from 'lucide-react';
+import { supabase } from "@/integrations/supabase/client";
 
 const History = () => {
   const { orders } = usePrint();
+  const [selectedDocument, setSelectedDocument] = useState(null);
   
   // Get all orders for the current user
   const userOrders = [...orders].sort((a, b) => new Date(b.dateCreated) - new Date(a.dateCreated));
+
+  const viewDocument = async (order) => {
+    try {
+      const { data: { publicUrl }, error } = supabase.storage
+        .from('documents')
+        .getPublicUrl(order.fileUrl);
+
+      if (error) throw error;
+
+      setSelectedDocument({
+        url: publicUrl,
+        name: order.fileName
+      });
+    } catch (error) {
+      toast.error('Error viewing document');
+      console.error('View error:', error);
+    }
+  };
 
   return (
     <div>
@@ -26,9 +48,25 @@ const History = () => {
       ) : (
         <div className="space-y-4">
           {userOrders.map((order) => (
-            <OrderCard key={order.id} order={order} showProgress={order.paid} />
+            <div key={order.id} className="relative">
+              <OrderCard order={order} showProgress={order.paid} />
+              <button
+                onClick={() => viewDocument(order)}
+                className="absolute top-4 right-4 p-2 bg-white rounded-full shadow-sm hover:bg-gray-50"
+              >
+                <Eye className="h-5 w-5 text-gray-600" />
+              </button>
+            </div>
           ))}
         </div>
+      )}
+
+      {selectedDocument && (
+        <DocumentViewer
+          fileUrl={selectedDocument.url}
+          fileName={selectedDocument.name}
+          onClose={() => setSelectedDocument(null)}
+        />
       )}
     </div>
   );
