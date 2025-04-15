@@ -5,10 +5,11 @@ import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 type RealtimeEvent = 'INSERT' | 'UPDATE' | 'DELETE';
 
+// Define a type for the callback function that matches what Supabase actually sends
 export const useRealtime = (
   table: string,
   event: RealtimeEvent,
-  callback: (payload: RealtimePostgresChangesPayload<any>) => void
+  callback: (payload: any) => void
 ) => {
   useEffect(() => {
     // Create a channel specifically for this table and event
@@ -18,7 +19,7 @@ export const useRealtime = (
     const channel = supabase
       .channel(channelId)
       .on(
-        'postgres_changes' as any, 
+        'postgres_changes', 
         { 
           event: event, 
           schema: 'public', 
