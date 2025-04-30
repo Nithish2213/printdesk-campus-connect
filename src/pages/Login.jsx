@@ -13,20 +13,6 @@ const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  // Predefined admin and xerox accounts
-  const predefinedAccounts = {
-    admin: {
-      email: 'admin@gmail.com',
-      password: 'admin123',
-      role: 'admin'
-    },
-    xerox: {
-      email: 'xerox@gmail.com',
-      password: 'xerox123',
-      role: 'xerox'
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -38,35 +24,6 @@ const Login = () => {
     setLoading(true);
     
     try {
-      // Check for predefined accounts first
-      if (email === predefinedAccounts.admin.email && password === predefinedAccounts.admin.password) {
-        // Mock login for admin
-        const adminUser = {
-          email: predefinedAccounts.admin.email,
-          name: 'Admin User',
-          role: predefinedAccounts.admin.role
-        };
-        
-        // Redirect to admin page
-        navigate('/admin/staff');
-        toast.success(`Welcome back, Admin!`);
-        return;
-      } 
-      else if (email === predefinedAccounts.xerox.email && password === predefinedAccounts.xerox.password) {
-        // Mock login for xerox
-        const xeroxUser = {
-          email: predefinedAccounts.xerox.email,
-          name: 'Xerox Operator',
-          role: predefinedAccounts.xerox.role
-        };
-        
-        // Redirect to xerox page
-        navigate('/xerox/orders');
-        toast.success(`Welcome back, Xerox Operator!`);
-        return;
-      }
-      
-      // If not a predefined account, try regular login via Supabase
       const user = await login(email, password);
       
       // Redirect based on user role
@@ -84,6 +41,17 @@ const Login = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Predefined accounts for quick access
+  const predefinedAccounts = [
+    { type: 'Admin', email: 'admin@gmail.com', password: 'admin123' },
+    { type: 'Xerox Operator', email: 'xerox@gmail.com', password: 'admin123' }
+  ];
+
+  const fillCredentials = (email, password) => {
+    setEmail(email);
+    setPassword(password);
   };
 
   return (
@@ -135,12 +103,39 @@ const Login = () => {
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
-          
-          {/* Display predefined account info for testing */}
-          <div className="mt-4 text-sm text-gray-500">
-            <p>Admin login: admin@gmail.com / admin123</p>
-            <p>Xerox login: xerox@gmail.com / xerox123</p>
+        </div>
+        
+        {/* Predefined accounts section */}
+        <div className="mt-6 bg-white p-4 rounded-lg shadow-sm border">
+          <h2 className="text-center text-lg font-medium mb-3">Predefined Accounts</h2>
+          <div className="space-y-3">
+            {predefinedAccounts.map((account, index) => (
+              <div key={index} className="p-3 bg-gray-50 rounded-md">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="font-medium text-gray-800">{account.type}</p>
+                    <p className="text-sm text-gray-600">Email: {account.email}</p>
+                    <p className="text-sm text-gray-600">Password: {account.password}</p>
+                  </div>
+                  <button
+                    onClick={() => fillCredentials(account.email, account.password)}
+                    className="px-3 py-1 bg-primary text-white text-sm rounded hover:bg-indigo-700 transition-colors"
+                  >
+                    Use
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
+        </div>
+        
+        <div className="text-center mt-6">
+          <p className="text-gray-600">
+            Don't have an account?{' '}
+            <Link to="/signup" className="text-primary hover:underline">
+              Sign up
+            </Link>
+          </p>
         </div>
       </div>
     </div>
