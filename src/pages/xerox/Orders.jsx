@@ -111,6 +111,7 @@ const Orders = () => {
   const handleUpdateStatus = (orderId, newStatus) => {
     updateOrderStatus(orderId, newStatus);
     toast.success(`Order status updated to ${newStatus}`);
+    setSelectedOrder(null); // Close the order details view after updating
   };
 
   // Format file size to readable format

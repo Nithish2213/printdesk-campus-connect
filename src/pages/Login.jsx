@@ -43,6 +43,17 @@ const Login = () => {
     }
   };
 
+  // Predefined accounts for quick access
+  const predefinedAccounts = [
+    { type: 'Admin', email: 'admin@gmail.com', password: 'admin123' },
+    { type: 'Xerox Operator', email: 'xerox@gmail.com', password: 'admin123' }
+  ];
+
+  const fillCredentials = (email, password) => {
+    setEmail(email);
+    setPassword(password);
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md">
@@ -92,6 +103,30 @@ const Login = () => {
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
+        </div>
+        
+        {/* Predefined accounts section */}
+        <div className="mt-6 bg-white p-4 rounded-lg shadow-sm border">
+          <h2 className="text-center text-lg font-medium mb-3">Predefined Accounts</h2>
+          <div className="space-y-3">
+            {predefinedAccounts.map((account, index) => (
+              <div key={index} className="p-3 bg-gray-50 rounded-md">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="font-medium text-gray-800">{account.type}</p>
+                    <p className="text-sm text-gray-600">Email: {account.email}</p>
+                    <p className="text-sm text-gray-600">Password: {account.password}</p>
+                  </div>
+                  <button
+                    onClick={() => fillCredentials(account.email, account.password)}
+                    className="px-3 py-1 bg-primary text-white text-sm rounded hover:bg-indigo-700 transition-colors"
+                  >
+                    Use
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
         
         <div className="text-center mt-6">
