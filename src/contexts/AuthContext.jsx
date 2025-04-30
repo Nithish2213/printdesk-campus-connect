@@ -45,24 +45,27 @@ export const AuthProvider = ({ children }) => {
     // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-          .then(({ data: profile, error }) => {
-            if (!error) {
-              setCurrentUser({
-                ...session.user,
-                ...profile
-              });
-            } else {
-              console.error("Error fetching user profile:", error);
-              setCurrentUser(session.user);
-            }
-          });
+        setTimeout(async () => {
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+            
+          if (!error && profile) {
+            setCurrentUser({
+              ...session.user,
+              ...profile
+            });
+          } else {
+            console.error("Error fetching user profile:", error);
+            setCurrentUser(session.user);
+          }
+          setLoading(false);
+        }, 0);
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => {
@@ -71,72 +74,6 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
-    // Check for predefined accounts first
-    if (email === 'admin@gmail.com' && password === 'admin123') {
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-
-        if (error) throw error;
-
-        if (data.user) {
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', data.user.id)
-            .single();
-
-          if (error) throw error;
-
-          const user = {
-            ...data.user,
-            ...profile
-          };
-
-          setCurrentUser(user);
-          return user;
-        }
-      } catch (error) {
-        console.error("Error logging in as admin:", error);
-        toast.error("Failed to log in as admin. Please try again later.");
-        throw new Error("Failed to log in as admin");
-      }
-    } else if (email === 'xerox@gmail.com' && password === 'admin123') {
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-
-        if (error) throw error;
-
-        if (data.user) {
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', data.user.id)
-            .single();
-
-          if (error) throw error;
-
-          const user = {
-            ...data.user,
-            ...profile
-          };
-
-          setCurrentUser(user);
-          return user;
-        }
-      } catch (error) {
-        console.error("Error logging in as xerox:", error);
-        toast.error("Failed to log in as xerox. Please try again later.");
-        throw new Error("Failed to log in as xerox");
-      }
-    }
-
-    // Regular user login
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -152,20 +89,12 @@ export const AuthProvider = ({ children }) => {
           .eq('id', data.user.id)
           .single();
 
-        let user;
-        
-        if (!error && profile) {
-          user = {
-            ...data.user,
-            ...profile
-          };
-        } else {
-          console.warn("No profile found for user, using basic user data");
-          user = {
-            ...data.user,
-            role: 'student' // Default role
-          };
-        }
+        if (error) throw error;
+
+        const user = {
+          ...data.user,
+          ...profile
+        };
 
         setCurrentUser(user);
         return user;
@@ -206,7 +135,7 @@ export const AuthProvider = ({ children }) => {
       if (error) throw error;
       
       setCurrentUser(null);
-      navigate('/');
+      navigate('/login');
       toast.success("Successfully logged out");
     } catch (error) {
       toast.error("Error logging out");

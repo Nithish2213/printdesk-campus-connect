@@ -33,10 +33,14 @@ const Login = () => {
         navigate('/xerox/orders');
       } else if (user.role === 'admin') {
         navigate('/admin/staff');
+      } else {
+        // Default redirect if role is undefined
+        navigate('/');
       }
       
-      toast.success(`Welcome back, ${user.name}!`);
+      toast.success(`Welcome back, ${user.name || 'User'}!`);
     } catch (error) {
+      console.error('Login error:', error);
       toast.error(error.message || "Failed to log in");
     } finally {
       setLoading(false);

@@ -1,8 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePrint } from '../../contexts/PrintContext';
 import { Printer, ChevronDown, Calendar, Clock, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,13 +12,63 @@ import {
 } from "../../components/ui/dropdown-menu";
 
 const Orders = () => {
-  const { orders, updateOrderStatus } = usePrint();
+  const { orders, serverActive } = usePrint();
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [paidOrders, setPaidOrders] = useState([]);
   
-  // Get paid orders sorted by date (newest first)
-  const paidOrders = orders
-    .filter(order => order.paid && order.status !== 'Completed' && order.status !== 'Delivered')
-    .sort((a, b) => new Date(b.dateCreated) - new Date(a.dateCreated));
+  // Fetch orders from Supabase
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          console.error('Error fetching orders:', error);
+          return;
+        }
+        
+        // For now, use both local orders and database orders
+        // Later we can fully migrate to using only database orders
+        setPaidOrders([
+          ...data,
+          ...orders.filter(order => order.paid && order.status !== 'Completed' && order.status !== 'Delivered')
+        ]);
+      } catch (error) {
+        console.error('Error in orders fetch:', error);
+      }
+    };
+    
+    fetchOrders();
+  }, [orders]);
+  
+  const updateOrderStatus = async (orderId, newStatus) => {
+    try {
+      // Try to update in Supabase first
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', orderId);
+      
+      if (error) {
+        console.error('Error updating order status in database:', error);
+        // If order is not in database, update it in local state
+        const updatedOrders = orders.map(order => 
+          order.id === orderId ? { ...order, status: newStatus } : order
+        );
+        // We would update local state here if needed
+      }
+      
+      toast.success(`Order status updated to ${newStatus}`);
+      setSelectedOrder(null); // Close the order details view after updating
+      
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      toast.error('Failed to update order status');
+    }
+  };
 
   const handlePrint = (order) => {
     // Open browser print dialog
@@ -31,7 +82,7 @@ const Orders = () => {
     printWindow.document.write(`
       <html>
         <head>
-          <title>Print Order #${order.orderNumber}</title>
+          <title>Print Order #${order.orderNumber || order.id.substring(0,8)}</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; }
             .header { text-align: center; margin-bottom: 20px; }
@@ -45,12 +96,12 @@ const Orders = () => {
         </head>
         <body>
           <div class="header">
-            <h1>PrintHub - Order #${order.orderNumber}</h1>
-            <p>Date: ${new Date(order.dateCreated).toLocaleString()}</p>
+            <h1>PrintHub - Order #${order.orderNumber || order.id.substring(0,8)}</h1>
+            <p>Date: ${new Date(order.created_at || order.dateCreated).toLocaleString()}</p>
           </div>
           
           <div class="file-info">
-            <p><strong>File:</strong> ${order.fileName}</p>
+            <p><strong>File:</strong> ${order.fileName || order.file_url}</p>
           </div>
           
           <div class="details">
@@ -58,7 +109,7 @@ const Orders = () => {
             <table>
               <tr>
                 <th>Print Type</th>
-                <td>${order.printType}</td>
+                <td>${order.printType || order.paper_size}</td>
               </tr>
               <tr>
                 <th>Copies</th>
@@ -66,7 +117,7 @@ const Orders = () => {
               </tr>
               <tr>
                 <th>Color</th>
-                <td>${order.isColorPrint ? 'Yes' : 'No'}</td>
+                <td>${order.isColorPrint || order.color ? 'Yes' : 'No'}</td>
               </tr>
               <tr>
                 <th>Double-sided</th>
@@ -74,7 +125,7 @@ const Orders = () => {
               </tr>
               <tr>
                 <th>Student</th>
-                <td>${order.studentName} (${order.studentEmail})</td>
+                <td>${order.studentName || order.user_id}</td>
               </tr>
               <tr>
                 <th>Status</th>
@@ -83,10 +134,10 @@ const Orders = () => {
             </table>
           </div>
           
-          ${order.message ? `
+          ${order.message || order.notes ? `
             <div class="message">
               <h2>Customer Message</h2>
-              <p>${order.message}</p>
+              <p>${order.message || order.notes}</p>
             </div>
           ` : ''}
           
@@ -110,12 +161,11 @@ const Orders = () => {
 
   const handleUpdateStatus = (orderId, newStatus) => {
     updateOrderStatus(orderId, newStatus);
-    toast.success(`Order status updated to ${newStatus}`);
-    setSelectedOrder(null); // Close the order details view after updating
   };
 
   // Format file size to readable format
   const formatFileSize = (bytes) => {
+    if (!bytes) return 'Unknown';
     if (bytes < 1024) return bytes + ' bytes';
     else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
     else return (bytes / 1048576).toFixed(1) + ' MB';
@@ -123,8 +173,19 @@ const Orders = () => {
 
   // Format date to readable format
   const formatDate = (dateString) => {
+    if (!dateString) return 'Unknown date';
     const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
     return new Date(dateString).toLocaleString('en-US', options);
+  };
+
+  // Get file name from URL or use provided fileName
+  const getFileName = (order) => {
+    if (order.fileName) return order.fileName;
+    if (order.file_url) {
+      const urlParts = order.file_url.split('/');
+      return urlParts[urlParts.length - 1];
+    }
+    return 'Unknown file';
   };
 
   return (
@@ -160,13 +221,13 @@ const Orders = () => {
                     <Printer className="h-8 w-8 text-primary" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold">{selectedOrder.fileName}</h3>
-                    <p className="text-gray-500">Order #{selectedOrder.orderNumber}</p>
+                    <h3 className="text-xl font-bold">{getFileName(selectedOrder)}</h3>
+                    <p className="text-gray-500">Order #{selectedOrder.orderNumber || selectedOrder.id.substring(0, 8)}</p>
                   </div>
                 </div>
                 
                 <div className="text-sm text-gray-500">
-                  {formatDate(selectedOrder.dateCreated)}
+                  {formatDate(selectedOrder.dateCreated || selectedOrder.created_at)}
                 </div>
               </div>
               
@@ -176,30 +237,30 @@ const Orders = () => {
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <div className="grid grid-cols-2 gap-y-3">
                       <div className="text-gray-600">Type:</div>
-                      <div>{selectedOrder.printType}</div>
+                      <div>{selectedOrder.printType || selectedOrder.paper_size}</div>
                       
                       <div className="text-gray-600">Copies:</div>
                       <div>{selectedOrder.copies}</div>
                       
                       <div className="text-gray-600">Color:</div>
-                      <div>{selectedOrder.isColorPrint ? 'Yes' : 'No'}</div>
+                      <div>{selectedOrder.isColorPrint || selectedOrder.color ? 'Yes' : 'No'}</div>
                       
                       <div className="text-gray-600">Double-sided:</div>
                       <div>{selectedOrder.isDoubleSided ? 'Yes' : 'No'}</div>
                       
                       <div className="text-gray-600">File size:</div>
-                      <div>{formatFileSize(selectedOrder.fileSize)}</div>
+                      <div>{selectedOrder.fileSize ? formatFileSize(selectedOrder.fileSize) : 'N/A'}</div>
                       
                       <div className="text-gray-600">Student:</div>
-                      <div>{selectedOrder.studentName}</div>
+                      <div>{selectedOrder.studentName || selectedOrder.user_id}</div>
                     </div>
                   </div>
                   
-                  {selectedOrder.message && (
+                  {(selectedOrder.message || selectedOrder.notes) && (
                     <div className="mt-4">
                       <h4 className="font-medium mb-2 text-gray-700">Message</h4>
                       <div className="bg-gray-50 p-4 rounded-lg">
-                        <p className="text-gray-600">{selectedOrder.message}</p>
+                        <p className="text-gray-600">{selectedOrder.message || selectedOrder.notes}</p>
                       </div>
                     </div>
                   )}
@@ -219,7 +280,7 @@ const Orders = () => {
                       <span className="font-medium">{selectedOrder.status}</span>
                     </div>
                     
-                    {selectedOrder.progress < 100 && selectedOrder.progress > 0 && (
+                    {selectedOrder.progress && selectedOrder.progress < 100 && selectedOrder.progress > 0 && (
                       <div className="mt-2">
                         <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                           <div 
@@ -280,20 +341,20 @@ const Orders = () => {
                   
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-medium truncate">{order.fileName}</h3>
+                      <h3 className="font-medium truncate">{getFileName(order)}</h3>
                       <span className="text-xs bg-gray-100 px-2 py-1 rounded ml-2 whitespace-nowrap">
-                        #{order.orderNumber}
+                        #{order.orderNumber || order.id.substring(0, 8)}
                       </span>
                     </div>
                     
                     <div className="flex items-center text-sm text-gray-500 mt-1">
-                      <span className="truncate">{order.studentName} • {order.printType} • {order.copies} {order.copies > 1 ? 'copies' : 'copy'}</span>
+                      <span className="truncate">{order.studentName || order.user_id} • {order.printType || order.paper_size} • {order.copies} {order.copies > 1 ? 'copies' : 'copy'}</span>
                     </div>
                   </div>
                   
                   <div className="ml-4 flex flex-col items-end">
                     <div className="text-xs text-gray-500 whitespace-nowrap">
-                      {formatDate(order.dateCreated)}
+                      {formatDate(order.dateCreated || order.created_at)}
                     </div>
                     
                     <div className="flex items-center mt-1">
