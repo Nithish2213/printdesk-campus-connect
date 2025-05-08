@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from "sonner";
@@ -9,8 +9,27 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, currentUser } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (currentUser) {
+      redirectBasedOnRole(currentUser);
+    }
+  }, [currentUser]);
+
+  const redirectBasedOnRole = (user) => {
+    if (user.role === 'student') {
+      navigate('/student/upload');
+    } else if (user.role === 'xerox') {
+      navigate('/xerox/orders');
+    } else if (user.role === 'admin') {
+      navigate('/admin/staff');
+    } else {
+      navigate('/');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,19 +44,10 @@ const Login = () => {
     try {
       const user = await login(email, password);
       
-      // Redirect based on user role
-      if (user.role === 'student') {
-        navigate('/student/upload');
-      } else if (user.role === 'xerox') {
-        navigate('/xerox/orders');
-      } else if (user.role === 'admin') {
-        navigate('/admin/staff');
-      } else {
-        // Default redirect if role is undefined
-        navigate('/');
+      if (user) {
+        toast.success(`Welcome back, ${user.name || 'User'}!`);
+        redirectBasedOnRole(user);
       }
-      
-      toast.success(`Welcome back, ${user.name || 'User'}!`);
     } catch (error) {
       console.error('Login error:', error);
       toast.error(error.message || "Failed to log in");
@@ -104,14 +114,6 @@ const Login = () => {
               Sign up
             </Link>
           </p>
-          <div className="text-gray-600 mt-4 p-4 border rounded-lg bg-gray-50">
-            <p className="font-medium mb-2">Demo Credentials:</p>
-            <ul className="space-y-1 text-sm">
-              <li><strong>Admin:</strong> admin@gmail.com / admin123</li>
-              <li><strong>Xerox:</strong> xerox@gmail.com / admin123</li>
-              <li><strong>Student:</strong> student@kgkite.ac.in / student123</li>
-            </ul>
-          </div>
         </div>
       </div>
     </div>

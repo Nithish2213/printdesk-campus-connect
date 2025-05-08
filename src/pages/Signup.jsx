@@ -52,7 +52,7 @@ const Signup = () => {
           <div className="flex justify-center">
             <Printer className="text-primary h-12 w-12" />
           </div>
-          <h1 className="text-3xl font-bold mt-4">Create your account</h1>
+          <h1 className="text-3xl font-bold mt-4">Create Student Account</h1>
           <p className="text-gray-600 mt-2">Student Print Management System</p>
         </div>
         
@@ -132,6 +132,10 @@ const Signup = () => {
               Sign in
             </Link>
           </p>
+          <div className="text-sm text-gray-500 mt-3">
+            <p>Note: Only students can create new accounts.</p>
+            <p>Admin and Staff accounts are pre-configured.</p>
+          </div>
         </div>
       </div>
     </div>

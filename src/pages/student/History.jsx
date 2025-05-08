@@ -25,6 +25,7 @@ const History = () => {
         setOrders(data || []);
       } catch (error) {
         console.error('Error fetching orders:', error);
+        toast.error("Failed to fetch order history");
       } finally {
         setLoading(false);
       }
@@ -32,9 +33,9 @@ const History = () => {
     
     fetchOrders();
     
-    // Set up realtime subscription
-    const subscription = supabase
-      .channel('public:orders')
+    // Set up realtime subscription for order updates
+    const channel = supabase
+      .channel('orders-changes')
       .on('postgres_changes', 
         {
           event: '*',
@@ -43,6 +44,8 @@ const History = () => {
           filter: `user_id=eq.${currentUser.id}`
         }, 
         (payload) => {
+          console.log("Realtime order update received:", payload);
+          
           if (payload.eventType === 'INSERT') {
             setOrders(prev => [payload.new, ...prev]);
           } else if (payload.eventType === 'UPDATE') {
@@ -61,7 +64,7 @@ const History = () => {
       .subscribe();
       
     return () => {
-      supabase.removeChannel(subscription);
+      supabase.removeChannel(channel);
     };
   }, [currentUser]);
 
@@ -86,6 +89,7 @@ const History = () => {
         </div>
       ) : (
         <div className="space-y-4">
+          <p className="text-sm text-gray-500 mb-2">Showing {orders.length} orders. Updates will appear in real-time.</p>
           {orders.map((order) => (
             <OrderCard 
               key={order.id} 
