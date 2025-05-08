@@ -53,7 +53,7 @@ const Login = () => {
       }
     } catch (error) {
       console.error('Login error:', error);
-      toast.error(error.message || "Failed to log in");
+      toast.error(error.message || "Failed to log in. Please check your credentials.");
     } finally {
       setLoading(false);
     }
@@ -108,25 +108,13 @@ const Login = () => {
               {loading ? 'Signing in...' : 'Sign in'}
             </Button>
 
-            <div className="flex justify-center mt-4">
-              <button
-                type="button"
-                onClick={() => setShowInfo(!showInfo)}
-                className="text-primary text-sm flex items-center hover:underline"
-              >
-                <Info size={16} className="mr-1" />
-                {showInfo ? 'Hide login info' : 'View login info'}
-              </button>
+            {/* Only for development - hidden in production */}
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm">
+              <h3 className="font-medium text-blue-800 mb-2">Login Information (Development Only):</h3>
+              <p className="mb-1"><strong>Admin:</strong> admin@gmail.com / password123</p>
+              <p className="mb-1"><strong>Xerox:</strong> xerox@gmail.com / password123</p>
+              <p><strong>Student:</strong> Create a new account or use an existing one</p>
             </div>
-
-            {showInfo && (
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm">
-                <h3 className="font-medium text-blue-800 mb-2">Login Information:</h3>
-                <p className="mb-1"><strong>Admin:</strong> admin@gmail.com / password123</p>
-                <p className="mb-1"><strong>Xerox:</strong> xerox@gmail.com / password123</p>
-                <p><strong>Student:</strong> Create a new account or use an existing one</p>
-              </div>
-            )}
           </form>
         </div>
         

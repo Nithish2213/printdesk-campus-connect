@@ -33,69 +33,59 @@ const createDefaultAccounts = async () => {
   console.log("Checking for default accounts...");
   
   try {
-    // Check if admin and xerox users exist
-    const adminCheck = await supabase.auth.signInWithPassword({
+    // First ensure we're completely signed out
+    await supabase.auth.signOut({ scope: 'global' });
+    cleanupAuthState();
+    
+    // Check if admin account exists by trying to create it
+    console.log("Checking admin account...");
+    const { data: adminData, error: adminError } = await supabase.auth.signUp({
       email: 'admin@gmail.com',
-      password: 'password123'
+      password: 'password123',
+      options: {
+        data: {
+          name: 'Admin User',
+          role: 'admin'
+        }
+      }
     });
     
-    if (adminCheck.error) {
-      console.log("Admin account doesn't exist, creating...");
-      // Create admin account
-      const { data: adminSignup, error: adminSignupError } = await supabase.auth.signUp({
-        email: 'admin@gmail.com',
-        password: 'password123',
-        options: {
-          data: {
-            name: 'Admin User',
-            role: 'admin'
-          }
-        }
-      });
-      
-      if (adminSignupError) {
-        console.error("Error creating admin account:", adminSignupError);
-      } else {
-        console.log("Admin account created successfully");
-      }
-    } else {
+    if (adminError && adminError.message.includes("User already registered")) {
       console.log("Admin account already exists");
+    } else if (!adminError) {
+      console.log("Admin account created successfully");
+    } else {
+      console.error("Error checking admin account:", adminError);
     }
 
-    // Sign out after checking/creating admin account
+    // Sign out before checking next account
     await supabase.auth.signOut();
+    cleanupAuthState();
     
     // Check xerox account
-    const xeroxCheck = await supabase.auth.signInWithPassword({
+    console.log("Checking xerox account...");
+    const { data: xeroxData, error: xeroxError } = await supabase.auth.signUp({
       email: 'xerox@gmail.com',
-      password: 'password123'
+      password: 'password123',
+      options: {
+        data: {
+          name: 'Xerox Operator',
+          role: 'xerox'
+        }
+      }
     });
     
-    if (xeroxCheck.error) {
-      console.log("Xerox account doesn't exist, creating...");
-      // Create xerox account
-      const { data: xeroxSignup, error: xeroxSignupError } = await supabase.auth.signUp({
-        email: 'xerox@gmail.com',
-        password: 'password123',
-        options: {
-          data: {
-            name: 'Xerox Operator',
-            role: 'xerox'
-          }
-        }
-      });
-      
-      if (xeroxSignupError) {
-        console.error("Error creating xerox account:", xeroxSignupError);
-      } else {
-        console.log("Xerox account created successfully");
-      }
-    } else {
+    if (xeroxError && xeroxError.message.includes("User already registered")) {
       console.log("Xerox account already exists");
+    } else if (!xeroxError) {
+      console.log("Xerox account created successfully");
+    } else {
+      console.error("Error checking xerox account:", xeroxError);
     }
 
     // Final sign out
     await supabase.auth.signOut();
+    cleanupAuthState();
     
   } catch (error) {
     console.error("Error checking/creating default accounts:", error);
@@ -194,10 +184,12 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
+      console.log("Attempting login with:", email);
+      
       // Clean up existing auth state
       cleanupAuthState();
       
-      // Try global sign out first
+      // Try global sign out first to ensure clean state
       try {
         await supabase.auth.signOut({ scope: 'global' });
       } catch (err) {
@@ -210,7 +202,10 @@ export const AuthProvider = ({ children }) => {
         password
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Login error:", error);
+        throw error;
+      }
 
       if (data.user) {
         const { data: profile, error: profileError } = await supabase

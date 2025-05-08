@@ -34,6 +34,7 @@ const Index = () => {
     }
   }, [currentUser]);
   
+  // If user is authenticated, redirect based on role
   if (currentUser) {
     console.log("Redirecting user based on role:", currentUser.role);
     
