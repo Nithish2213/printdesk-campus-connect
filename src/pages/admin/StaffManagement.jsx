@@ -1,11 +1,12 @@
 
-import React, { useState } from 'react';
-import { usePrint } from '../../contexts/PrintContext';
-import { Plus, Edit, Trash, User, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Plus, Edit, Trash, X } from 'lucide-react';
 import { toast } from "sonner";
 
 const StaffManagement = () => {
-  const { staff, addStaffMember, updateStaffMember, deleteStaffMember } = usePrint();
+  const [staff, setStaff] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
   const [formData, setFormData] = useState({
@@ -13,6 +14,33 @@ const StaffManagement = () => {
     email: '',
     role: 'Operator'
   });
+
+  // Fetch staff members from database
+  useEffect(() => {
+    const fetchStaff = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('staff')
+          .select('*')
+          .order('created_at', { ascending: false });
+          
+        if (error) {
+          console.error('Error fetching staff:', error);
+          toast.error("Failed to load staff members");
+          return;
+        }
+        
+        setStaff(data || []);
+      } catch (error) {
+        console.error('Error in staff fetch:', error);
+        toast.error("Error loading staff data");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchStaff();
+  }, []);
 
   const openModal = (staffMember = null) => {
     if (staffMember) {
@@ -43,7 +71,7 @@ const StaffManagement = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!formData.name || !formData.email) {
@@ -51,21 +79,73 @@ const StaffManagement = () => {
       return;
     }
     
-    if (editingStaff) {
-      updateStaffMember(editingStaff.id, formData);
-      toast.success("Staff member updated successfully");
-    } else {
-      addStaffMember(formData.name, formData.email, formData.role);
-      toast.success("Staff member added successfully");
+    try {
+      if (editingStaff) {
+        // Update existing staff member
+        const { error } = await supabase
+          .from('staff')
+          .update({
+            name: formData.name,
+            email: formData.email,
+            role: formData.role
+          })
+          .eq('id', editingStaff.id);
+          
+        if (error) throw error;
+        
+        setStaff(prev => 
+          prev.map(item => 
+            item.id === editingStaff.id 
+              ? { ...item, ...formData }
+              : item
+          )
+        );
+        
+        toast.success("Staff member updated successfully");
+      } else {
+        // Add new staff member
+        const { data, error } = await supabase
+          .from('staff')
+          .insert({
+            name: formData.name,
+            email: formData.email,
+            role: formData.role,
+            status: 'active'
+          })
+          .select()
+          .single();
+          
+        if (error) throw error;
+        
+        setStaff(prev => [data, ...prev]);
+        toast.success("Staff member added successfully");
+      }
+      
+      closeModal();
+    } catch (error) {
+      console.error("Error saving staff member:", error);
+      toast.error(error.message || "Failed to save staff member");
     }
-    
-    closeModal();
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm("Are you sure you want to delete this staff member?")) {
-      deleteStaffMember(id);
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this staff member?")) {
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('staff')
+        .delete()
+        .eq('id', id);
+        
+      if (error) throw error;
+      
+      setStaff(prev => prev.filter(item => item.id !== id));
       toast.success("Staff member removed successfully");
+    } catch (error) {
+      console.error("Error deleting staff member:", error);
+      toast.error(error.message || "Failed to delete staff member");
     }
   };
 
@@ -83,63 +163,70 @@ const StaffManagement = () => {
         </button>
       </div>
       
-      <div className="overflow-x-auto">
-        <table className="min-w-full">
-          <thead>
-            <tr className="border-b">
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {staff.map((member) => (
-              <tr key={member.id}>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="font-medium text-gray-900">{member.name}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                  {member.email}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                  {member.role}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
-                    {member.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex space-x-2">
-                    <button 
-                      onClick={() => openModal(member)}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      <Edit className="h-5 w-5" />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(member.id)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      <Trash className="h-5 w-5" />
-                    </button>
-                  </div>
-                </td>
+      {loading ? (
+        <div className="text-center py-10">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-gray-500">Loading staff members...</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead>
+              <tr className="border-b">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
-            ))}
-            
-            {staff.length === 0 && (
-              <tr>
-                <td colSpan="5" className="px-6 py-10 text-center text-gray-500">
-                  No staff members found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {staff.map((member) => (
+                <tr key={member.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="font-medium text-gray-900">{member.name}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                    {member.email}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                    {member.role}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
+                      {member.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex space-x-2">
+                      <button 
+                        onClick={() => openModal(member)}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        <Edit className="h-5 w-5" />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(member.id)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              
+              {staff.length === 0 && (
+                <tr>
+                  <td colSpan="5" className="px-6 py-10 text-center text-gray-500">
+                    No staff members found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
       
       {/* Add/Edit Staff Modal */}
       {isModalOpen && (

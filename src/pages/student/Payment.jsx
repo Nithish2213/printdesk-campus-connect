@@ -4,43 +4,67 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { usePrint } from '../../contexts/PrintContext';
 import { toast } from "sonner";
 import { CreditCard, QrCode } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const Payment = () => {
   const { orderId } = useParams();
-  const { orders, completePayment } = usePrint();
+  const { completePayment } = usePrint();
   const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState('gpay');
   const navigate = useNavigate();
 
   useEffect(() => {
-    const foundOrder = orders.find(o => o.id.toString() === orderId);
-    if (foundOrder) {
-      setOrder(foundOrder);
-    } else {
-      toast.error("Order not found");
-      navigate('/student/upload');
-    }
-  }, [orderId, orders, navigate]);
+    const fetchOrder = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('id', orderId)
+          .single();
+          
+        if (error) throw error;
+        
+        if (data) {
+          setOrder(data);
+        } else {
+          toast.error("Order not found");
+          navigate('/student/upload');
+        }
+      } catch (error) {
+        console.error("Error fetching order:", error);
+        toast.error("Error loading order details");
+        navigate('/student/upload');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchOrder();
+  }, [orderId, navigate]);
 
   const calculatePrice = () => {
     if (!order) return 0;
     
     let basePrice = 1; // Base price per page
     
-    if (order.isColorPrint) basePrice += 4; // Extra for color
-    if (order.printType === 'Glossy Print') basePrice += 3; // Extra for glossy
-    if (order.printType === 'Matte Print') basePrice += 2; // Extra for matte
+    if (order.is_color_print) basePrice += 4; // Extra for color
+    if (order.paper_size === 'Glossy Print') basePrice += 3; // Extra for glossy
+    if (order.paper_size === 'Matte Print') basePrice += 2; // Extra for matte
     
     return basePrice * order.copies; // Multiply by number of copies
   };
 
-  const handlePayment = () => {
-    completePayment(parseInt(orderId));
-    toast.success(`Payment successful! Your order #${order.orderNumber} is being processed.`);
-    navigate('/student/track');
+  const handlePayment = async () => {
+    const success = await completePayment(orderId);
+    
+    if (success) {
+      toast.success(`Payment successful! Your order is being processed.`);
+      navigate('/student/track');
+    }
   };
 
-  if (!order) {
+  if (loading) {
     return (
       <div className="text-center py-10">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
@@ -59,14 +83,14 @@ const Payment = () => {
             <h3 className="text-lg font-medium mb-4">Order Summary</h3>
             
             <div className="border-b pb-4 mb-4">
-              <p className="text-sm text-gray-500 mb-1">Order #{order.orderNumber}</p>
-              <p className="font-medium">{order.fileName}</p>
+              <p className="text-sm text-gray-500 mb-1">Order ID: {order.id.substring(0, 8)}</p>
+              <p className="font-medium">{order.file_name}</p>
             </div>
             
             <div className="space-y-3 mb-6">
               <div className="flex justify-between">
                 <span className="text-gray-600">Print Type:</span>
-                <span>{order.printType}</span>
+                <span>{order.paper_size}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Copies:</span>
@@ -74,11 +98,11 @@ const Payment = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Color Print:</span>
-                <span>{order.isColorPrint ? 'Yes' : 'No'}</span>
+                <span>{order.is_color_print ? 'Yes' : 'No'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Double Sided:</span>
-                <span>{order.isDoubleSided ? 'Yes' : 'No'}</span>
+                <span>{order.is_double_sided ? 'Yes' : 'No'}</span>
               </div>
             </div>
             

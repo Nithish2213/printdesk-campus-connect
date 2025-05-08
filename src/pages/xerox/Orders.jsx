@@ -1,9 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { usePrint } from '../../contexts/PrintContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Printer, ChevronDown, Calendar, Clock, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,17 +11,20 @@ import {
 } from "../../components/ui/dropdown-menu";
 
 const Orders = () => {
-  const { orders, serverActive } = usePrint();
+  const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [paidOrders, setPaidOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [serverActive, setServerActive] = useState(true);
   
-  // Fetch orders from Supabase
+  // Fetch orders and server status from Supabase
   useEffect(() => {
     const fetchOrders = async () => {
       try {
         const { data, error } = await supabase
           .from('orders')
-          .select('*')
+          .select('*, profiles:user_id(*)')
+          .eq('payment_status', 'paid')
+          .not('status', 'in', ['Completed', 'Delivered'])
           .order('created_at', { ascending: false });
         
         if (error) {
@@ -30,39 +32,141 @@ const Orders = () => {
           return;
         }
         
-        // For now, use both local orders and database orders
-        // Later we can fully migrate to using only database orders
-        setPaidOrders([
-          ...data,
-          ...orders.filter(order => order.paid && order.status !== 'Completed' && order.status !== 'Delivered')
-        ]);
+        setOrders(data || []);
       } catch (error) {
         console.error('Error in orders fetch:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    const fetchServerStatus = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('server_status')
+          .select('is_active')
+          .eq('id', 1)
+          .single();
+          
+        if (error) {
+          console.error("Error fetching server status:", error);
+          return;
+        }
+        
+        setServerActive(data.is_active);
+      } catch (error) {
+        console.error("Error in server status fetch:", error);
       }
     };
     
     fetchOrders();
-  }, [orders]);
+    fetchServerStatus();
+    
+    // Set up realtime subscription for orders
+    const ordersSubscription = supabase
+      .channel('public:orders')
+      .on('postgres_changes', 
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders'
+        }, 
+        async (payload) => {
+          if (payload.eventType === 'INSERT') {
+            // For new orders, fetch the related profile data
+            if (payload.new.payment_status === 'paid' && !['Completed', 'Delivered'].includes(payload.new.status)) {
+              const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', payload.new.user_id)
+                .single();
+                
+              if (!error && profile) {
+                setOrders(prev => [{...payload.new, profiles: profile}, ...prev]);
+              } else {
+                setOrders(prev => [payload.new, ...prev]);
+              }
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            // Update order in state
+            if (['Completed', 'Delivered'].includes(payload.new.status)) {
+              // Remove from active orders list when completed
+              setOrders(prev => prev.filter(order => order.id !== payload.new.id));
+              
+              // If this is the selected order, clear selection
+              if (selectedOrder && selectedOrder.id === payload.new.id) {
+                setSelectedOrder(null);
+              }
+            } else {
+              // Just update the order
+              setOrders(prev => 
+                prev.map(order => {
+                  if (order.id === payload.new.id) {
+                    return { ...payload.new, profiles: order.profiles };
+                  }
+                  return order;
+                })
+              );
+              
+              // Update selected order if it's the one being updated
+              if (selectedOrder && selectedOrder.id === payload.new.id) {
+                setSelectedOrder(prev => ({ ...payload.new, profiles: prev.profiles }));
+              }
+            }
+          } else if (payload.eventType === 'DELETE') {
+            setOrders(prev => 
+              prev.filter(order => order.id !== payload.old.id)
+            );
+            
+            // Clear selection if the deleted order was selected
+            if (selectedOrder && selectedOrder.id === payload.old.id) {
+              setSelectedOrder(null);
+            }
+          }
+        }
+      )
+      .subscribe();
+      
+    // Set up realtime subscription for server status
+    const serverStatusSubscription = supabase
+      .channel('public:server_status')
+      .on('postgres_changes', 
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'server_status'
+        }, 
+        (payload) => {
+          setServerActive(payload.new.is_active);
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(ordersSubscription);
+      supabase.removeChannel(serverStatusSubscription);
+    };
+  }, []);
   
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
-      // Try to update in Supabase first
       const { error } = await supabase
         .from('orders')
         .update({ status: newStatus })
         .eq('id', orderId);
       
       if (error) {
-        console.error('Error updating order status in database:', error);
-        // If order is not in database, update it in local state
-        const updatedOrders = orders.map(order => 
-          order.id === orderId ? { ...order, status: newStatus } : order
-        );
-        // We would update local state here if needed
+        console.error('Error updating order status:', error);
+        toast.error('Failed to update order status');
+        return;
       }
       
       toast.success(`Order status updated to ${newStatus}`);
-      setSelectedOrder(null); // Close the order details view after updating
+      
+      // Update local state if needed
+      if (['Completed', 'Delivered'].includes(newStatus)) {
+        setSelectedOrder(null);
+      }
       
     } catch (error) {
       console.error('Error updating order status:', error);
@@ -79,10 +183,12 @@ const Orders = () => {
       return;
     }
     
+    const studentName = order.profiles ? order.profiles.name : 'Unknown';
+    
     printWindow.document.write(`
       <html>
         <head>
-          <title>Print Order #${order.orderNumber || order.id.substring(0,8)}</title>
+          <title>Print Order #${order.id.substring(0,8)}</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; }
             .header { text-align: center; margin-bottom: 20px; }
@@ -96,12 +202,12 @@ const Orders = () => {
         </head>
         <body>
           <div class="header">
-            <h1>PrintHub - Order #${order.orderNumber || order.id.substring(0,8)}</h1>
-            <p>Date: ${new Date(order.created_at || order.dateCreated).toLocaleString()}</p>
+            <h1>PrintHub - Order #${order.id.substring(0,8)}</h1>
+            <p>Date: ${new Date(order.created_at).toLocaleString()}</p>
           </div>
           
           <div class="file-info">
-            <p><strong>File:</strong> ${order.fileName || order.file_url}</p>
+            <p><strong>File:</strong> ${order.file_name || order.file_url}</p>
           </div>
           
           <div class="details">
@@ -109,7 +215,7 @@ const Orders = () => {
             <table>
               <tr>
                 <th>Print Type</th>
-                <td>${order.printType || order.paper_size}</td>
+                <td>${order.paper_size}</td>
               </tr>
               <tr>
                 <th>Copies</th>
@@ -117,27 +223,31 @@ const Orders = () => {
               </tr>
               <tr>
                 <th>Color</th>
-                <td>${order.isColorPrint || order.color ? 'Yes' : 'No'}</td>
+                <td>${order.is_color_print ? 'Yes' : 'No'}</td>
               </tr>
               <tr>
                 <th>Double-sided</th>
-                <td>${order.isDoubleSided ? 'Yes' : 'No'}</td>
+                <td>${order.is_double_sided ? 'Yes' : 'No'}</td>
               </tr>
               <tr>
                 <th>Student</th>
-                <td>${order.studentName || order.user_id}</td>
+                <td>${studentName}</td>
               </tr>
               <tr>
                 <th>Status</th>
                 <td>${order.status}</td>
               </tr>
+              <tr>
+                <th>OTP</th>
+                <td><strong>${order.otp}</strong></td>
+              </tr>
             </table>
           </div>
           
-          ${order.message || order.notes ? `
+          ${order.notes ? `
             <div class="message">
               <h2>Customer Message</h2>
-              <p>${order.message || order.notes}</p>
+              <p>${order.notes}</p>
             </div>
           ` : ''}
           
@@ -180,7 +290,7 @@ const Orders = () => {
 
   // Get file name from URL or use provided fileName
   const getFileName = (order) => {
-    if (order.fileName) return order.fileName;
+    if (order.file_name) return order.file_name;
     if (order.file_url) {
       const urlParts = order.file_url.split('/');
       return urlParts[urlParts.length - 1];
@@ -188,13 +298,25 @@ const Orders = () => {
     return 'Unknown file';
   };
 
+  const getStudentName = (order) => {
+    return order.profiles ? order.profiles.name : 'Unknown student';
+  };
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Print Orders</h2>
+        <div className={`px-3 py-1 rounded-full text-sm ${serverActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+          Server Status: {serverActive ? 'Online' : 'Offline'}
+        </div>
       </div>
       
-      {paidOrders.length === 0 ? (
+      {loading ? (
+        <div className="text-center py-10">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-gray-500">Loading orders...</p>
+        </div>
+      ) : orders.length === 0 ? (
         <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
           <div className="flex justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -222,12 +344,12 @@ const Orders = () => {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold">{getFileName(selectedOrder)}</h3>
-                    <p className="text-gray-500">Order #{selectedOrder.orderNumber || selectedOrder.id.substring(0, 8)}</p>
+                    <p className="text-gray-500">Order #{selectedOrder.id.substring(0, 8)}</p>
                   </div>
                 </div>
                 
                 <div className="text-sm text-gray-500">
-                  {formatDate(selectedOrder.dateCreated || selectedOrder.created_at)}
+                  {formatDate(selectedOrder.created_at)}
                 </div>
               </div>
               
@@ -237,30 +359,30 @@ const Orders = () => {
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <div className="grid grid-cols-2 gap-y-3">
                       <div className="text-gray-600">Type:</div>
-                      <div>{selectedOrder.printType || selectedOrder.paper_size}</div>
+                      <div>{selectedOrder.paper_size}</div>
                       
                       <div className="text-gray-600">Copies:</div>
                       <div>{selectedOrder.copies}</div>
                       
                       <div className="text-gray-600">Color:</div>
-                      <div>{selectedOrder.isColorPrint || selectedOrder.color ? 'Yes' : 'No'}</div>
+                      <div>{selectedOrder.is_color_print ? 'Yes' : 'No'}</div>
                       
                       <div className="text-gray-600">Double-sided:</div>
-                      <div>{selectedOrder.isDoubleSided ? 'Yes' : 'No'}</div>
-                      
-                      <div className="text-gray-600">File size:</div>
-                      <div>{selectedOrder.fileSize ? formatFileSize(selectedOrder.fileSize) : 'N/A'}</div>
+                      <div>{selectedOrder.is_double_sided ? 'Yes' : 'No'}</div>
                       
                       <div className="text-gray-600">Student:</div>
-                      <div>{selectedOrder.studentName || selectedOrder.user_id}</div>
+                      <div>{getStudentName(selectedOrder)}</div>
+                      
+                      <div className="text-gray-600">OTP:</div>
+                      <div className="font-bold">{selectedOrder.otp || 'Not generated'}</div>
                     </div>
                   </div>
                   
-                  {(selectedOrder.message || selectedOrder.notes) && (
+                  {selectedOrder.notes && (
                     <div className="mt-4">
                       <h4 className="font-medium mb-2 text-gray-700">Message</h4>
                       <div className="bg-gray-50 p-4 rounded-lg">
-                        <p className="text-gray-600">{selectedOrder.message || selectedOrder.notes}</p>
+                        <p className="text-gray-600">{selectedOrder.notes}</p>
                       </div>
                     </div>
                   )}
@@ -279,20 +401,6 @@ const Orders = () => {
                       )}
                       <span className="font-medium">{selectedOrder.status}</span>
                     </div>
-                    
-                    {selectedOrder.progress && selectedOrder.progress < 100 && selectedOrder.progress > 0 && (
-                      <div className="mt-2">
-                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-primary" 
-                            style={{ width: `${selectedOrder.progress}%` }}
-                          ></div>
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {selectedOrder.progress}% complete
-                        </div>
-                      </div>
-                    )}
                   </div>
                   
                   <div className="flex flex-col gap-3">
@@ -329,7 +437,7 @@ const Orders = () => {
             </div>
           ) : (
             <div className="divide-y">
-              {paidOrders.map((order) => (
+              {orders.map((order) => (
                 <div 
                   key={order.id} 
                   className="p-4 hover:bg-gray-50 cursor-pointer transition-colors flex items-center"
@@ -343,18 +451,18 @@ const Orders = () => {
                     <div className="flex items-center justify-between">
                       <h3 className="font-medium truncate">{getFileName(order)}</h3>
                       <span className="text-xs bg-gray-100 px-2 py-1 rounded ml-2 whitespace-nowrap">
-                        #{order.orderNumber || order.id.substring(0, 8)}
+                        #{order.id.substring(0, 8)}
                       </span>
                     </div>
                     
                     <div className="flex items-center text-sm text-gray-500 mt-1">
-                      <span className="truncate">{order.studentName || order.user_id} • {order.printType || order.paper_size} • {order.copies} {order.copies > 1 ? 'copies' : 'copy'}</span>
+                      <span className="truncate">{getStudentName(order)} • {order.paper_size} • {order.copies} {order.copies > 1 ? 'copies' : 'copy'}</span>
                     </div>
                   </div>
                   
                   <div className="ml-4 flex flex-col items-end">
                     <div className="text-xs text-gray-500 whitespace-nowrap">
-                      {formatDate(order.dateCreated || order.created_at)}
+                      {formatDate(order.created_at)}
                     </div>
                     
                     <div className="flex items-center mt-1">

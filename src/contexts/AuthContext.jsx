@@ -12,12 +12,15 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
+  const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     // Set up Supabase auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSession(session);
+      
       if (session) {
         try {
           const { data: profile, error } = await supabase
@@ -44,6 +47,8 @@ export const AuthProvider = ({ children }) => {
 
     // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      
       if (session) {
         setTimeout(async () => {
           const { data: profile, error } = await supabase
@@ -97,6 +102,7 @@ export const AuthProvider = ({ children }) => {
         };
 
         setCurrentUser(user);
+        setSession(data.session);
         return user;
       }
     } catch (error) {
@@ -135,6 +141,7 @@ export const AuthProvider = ({ children }) => {
       if (error) throw error;
       
       setCurrentUser(null);
+      setSession(null);
       navigate('/login');
       toast.success("Successfully logged out");
     } catch (error) {
@@ -144,6 +151,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     currentUser,
+    session,
     login,
     signup,
     logout,

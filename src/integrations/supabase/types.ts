@@ -9,6 +9,84 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      inventory: {
+        Row: {
+          category: string
+          id: string
+          last_updated: string | null
+          name: string
+          quantity: number | null
+          status: string | null
+        }
+        Insert: {
+          category: string
+          id?: string
+          last_updated?: string | null
+          name: string
+          quantity?: number | null
+          status?: string | null
+        }
+        Update: {
+          category?: string
+          id?: string
+          last_updated?: string | null
+          name?: string
+          quantity?: number | null
+          status?: string | null
+        }
+        Relationships: []
+      }
+      orders: {
+        Row: {
+          copies: number | null
+          created_at: string | null
+          file_name: string | null
+          file_url: string | null
+          id: string
+          is_color_print: boolean | null
+          is_double_sided: boolean | null
+          notes: string | null
+          otp: string | null
+          paper_size: string | null
+          payment_status: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          copies?: number | null
+          created_at?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          is_color_print?: boolean | null
+          is_double_sided?: boolean | null
+          notes?: string | null
+          otp?: string | null
+          paper_size?: string | null
+          payment_status?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          copies?: number | null
+          created_at?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          is_color_print?: boolean | null
+          is_double_sided?: boolean | null
+          notes?: string | null
+          otp?: string | null
+          paper_size?: string | null
+          payment_status?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -33,12 +111,63 @@ export type Database = {
         }
         Relationships: []
       }
+      server_status: {
+        Row: {
+          id: number
+          is_active: boolean | null
+          last_updated: string | null
+        }
+        Insert: {
+          id?: number
+          is_active?: boolean | null
+          last_updated?: string | null
+        }
+        Update: {
+          id?: number
+          is_active?: boolean | null
+          last_updated?: string | null
+        }
+        Relationships: []
+      }
+      staff: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          name: string
+          role: string
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          name: string
+          role: string
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          name?: string
+          role?: string
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      enable_realtime_for_table: {
+        Args: { table_name: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

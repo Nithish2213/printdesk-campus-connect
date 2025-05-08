@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { usePrint } from '../../contexts/PrintContext';
 import { Upload as UploadIcon, Plus, Minus } from 'lucide-react';
 import { toast } from "sonner";
+import { useAuth } from '../../contexts/AuthContext';
 
 const Upload = () => {
   const [file, setFile] = useState(null);
@@ -13,6 +14,7 @@ const Upload = () => {
   const [doubleSided, setDoubleSided] = useState(false);
   const [message, setMessage] = useState('');
   const fileInputRef = useRef(null);
+  const { currentUser } = useAuth();
   const { submitOrder, serverActive } = usePrint();
   const navigate = useNavigate();
 
@@ -67,7 +69,7 @@ const Upload = () => {
     e.preventDefault();
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!serverActive) {
@@ -80,7 +82,7 @@ const Upload = () => {
       return;
     }
     
-    const order = submitOrder(
+    const order = await submitOrder(
       file,
       printType,
       copies,

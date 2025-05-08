@@ -104,11 +104,14 @@ const Login = () => {
               Sign up
             </Link>
           </p>
-          <p className="text-gray-600 mt-2">
-            <strong>Demo credentials:</strong><br/>
-            Admin: admin@gmail.com / admin123<br/>
-            Xerox: xerox@gmail.com / admin123
-          </p>
+          <div className="text-gray-600 mt-4 p-4 border rounded-lg bg-gray-50">
+            <p className="font-medium mb-2">Demo Credentials:</p>
+            <ul className="space-y-1 text-sm">
+              <li><strong>Admin:</strong> admin@gmail.com / admin123</li>
+              <li><strong>Xerox:</strong> xerox@gmail.com / admin123</li>
+              <li><strong>Student:</strong> student@kgkite.ac.in / student123</li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
