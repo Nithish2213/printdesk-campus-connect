@@ -28,6 +28,80 @@ const cleanupAuthState = () => {
   });
 };
 
+// Utility function to create default accounts if they don't exist
+const createDefaultAccounts = async () => {
+  console.log("Checking for default accounts...");
+  
+  try {
+    // Check if admin and xerox users exist
+    const adminCheck = await supabase.auth.signInWithPassword({
+      email: 'admin@gmail.com',
+      password: 'password123'
+    });
+    
+    if (adminCheck.error) {
+      console.log("Admin account doesn't exist, creating...");
+      // Create admin account
+      const { data: adminSignup, error: adminSignupError } = await supabase.auth.signUp({
+        email: 'admin@gmail.com',
+        password: 'password123',
+        options: {
+          data: {
+            name: 'Admin User',
+            role: 'admin'
+          }
+        }
+      });
+      
+      if (adminSignupError) {
+        console.error("Error creating admin account:", adminSignupError);
+      } else {
+        console.log("Admin account created successfully");
+      }
+    } else {
+      console.log("Admin account already exists");
+    }
+
+    // Sign out after checking/creating admin account
+    await supabase.auth.signOut();
+    
+    // Check xerox account
+    const xeroxCheck = await supabase.auth.signInWithPassword({
+      email: 'xerox@gmail.com',
+      password: 'password123'
+    });
+    
+    if (xeroxCheck.error) {
+      console.log("Xerox account doesn't exist, creating...");
+      // Create xerox account
+      const { data: xeroxSignup, error: xeroxSignupError } = await supabase.auth.signUp({
+        email: 'xerox@gmail.com',
+        password: 'password123',
+        options: {
+          data: {
+            name: 'Xerox Operator',
+            role: 'xerox'
+          }
+        }
+      });
+      
+      if (xeroxSignupError) {
+        console.error("Error creating xerox account:", xeroxSignupError);
+      } else {
+        console.log("Xerox account created successfully");
+      }
+    } else {
+      console.log("Xerox account already exists");
+    }
+
+    // Final sign out
+    await supabase.auth.signOut();
+    
+  } catch (error) {
+    console.error("Error checking/creating default accounts:", error);
+  }
+};
+
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [session, setSession] = useState(null);
@@ -35,8 +109,12 @@ export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Create default accounts if needed
+    createDefaultAccounts();
+    
     // Set up Supabase auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state changed:", event, session);
       setSession(session);
       
       if (session) {
@@ -51,10 +129,13 @@ export const AuthProvider = ({ children }) => {
               
             if (error) throw error;
             
-            setCurrentUser({
+            const user = {
               ...session.user,
               ...profile
-            });
+            };
+            
+            console.log("Fetched user profile:", user);
+            setCurrentUser(user);
           } catch (error) {
             console.error("Error fetching user profile:", error);
             setCurrentUser(session.user);
@@ -70,6 +151,7 @@ export const AuthProvider = ({ children }) => {
 
     // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("Initial session check:", session);
       setSession(session);
       
       if (session) {
@@ -82,10 +164,13 @@ export const AuthProvider = ({ children }) => {
               .single();
               
             if (!error && profile) {
-              setCurrentUser({
+              const user = {
                 ...session.user,
                 ...profile
-              });
+              };
+              
+              console.log("Initial profile fetch:", user);
+              setCurrentUser(user);
             } else {
               console.error("Error fetching user profile:", error);
               setCurrentUser(session.user);
@@ -128,19 +213,23 @@ export const AuthProvider = ({ children }) => {
       if (error) throw error;
 
       if (data.user) {
-        const { data: profile, error } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', data.user.id)
           .single();
 
-        if (error) throw error;
+        if (profileError) {
+          console.error("Error fetching profile:", profileError);
+          // Continue anyway, profile might be created by trigger
+        }
 
         const user = {
           ...data.user,
-          ...profile
+          ...(profile || {})
         };
 
+        console.log("Logged in user:", user);
         setCurrentUser(user);
         setSession(data.session);
         return user;

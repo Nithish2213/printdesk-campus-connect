@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '../../contexts/AuthContext';
+import { toast } from 'sonner';
 import OrderCard from '../../components/OrderCard';
 
 const History = () => {
@@ -22,6 +23,7 @@ const History = () => {
           
         if (error) throw error;
         
+        console.log("Fetched orders for student:", data);
         setOrders(data || []);
       } catch (error) {
         console.error('Error fetching orders:', error);
@@ -48,16 +50,19 @@ const History = () => {
           
           if (payload.eventType === 'INSERT') {
             setOrders(prev => [payload.new, ...prev]);
+            toast.success('New order added');
           } else if (payload.eventType === 'UPDATE') {
             setOrders(prev => 
               prev.map(order => 
                 order.id === payload.new.id ? payload.new : order
               )
             );
+            toast.info('Order updated');
           } else if (payload.eventType === 'DELETE') {
             setOrders(prev => 
               prev.filter(order => order.id !== payload.old.id)
             );
+            toast.info('Order removed');
           }
         }
       )

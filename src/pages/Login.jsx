@@ -3,12 +3,15 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from "sonner";
-import { Printer } from 'lucide-react';
+import { Printer, Info } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const { login, currentUser } = useAuth();
   const navigate = useNavigate();
 
@@ -73,12 +76,12 @@ const Login = () => {
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                 Email address
               </label>
-              <input
+              <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-3 border rounded-md focus:ring-primary focus:border-primary"
+                className="w-full"
                 placeholder="Email address"
               />
             </div>
@@ -87,23 +90,43 @@ const Login = () => {
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                 Password
               </label>
-              <input
+              <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full p-3 border rounded-md focus:ring-primary focus:border-primary"
+                className="w-full"
                 placeholder="Password"
               />
             </div>
             
-            <button
+            <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-primary hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-md transition duration-150 disabled:opacity-50"
+              className="w-full bg-primary hover:bg-indigo-700"
             >
               {loading ? 'Signing in...' : 'Sign in'}
-            </button>
+            </Button>
+
+            <div className="flex justify-center mt-4">
+              <button
+                type="button"
+                onClick={() => setShowInfo(!showInfo)}
+                className="text-primary text-sm flex items-center hover:underline"
+              >
+                <Info size={16} className="mr-1" />
+                {showInfo ? 'Hide login info' : 'View login info'}
+              </button>
+            </div>
+
+            {showInfo && (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm">
+                <h3 className="font-medium text-blue-800 mb-2">Login Information:</h3>
+                <p className="mb-1"><strong>Admin:</strong> admin@gmail.com / password123</p>
+                <p className="mb-1"><strong>Xerox:</strong> xerox@gmail.com / password123</p>
+                <p><strong>Student:</strong> Create a new account or use an existing one</p>
+              </div>
+            )}
           </form>
         </div>
         
@@ -114,6 +137,10 @@ const Login = () => {
               Sign up
             </Link>
           </p>
+          <div className="text-xs text-gray-500 mt-3">
+            <p>Note: Only students can create new accounts.</p>
+            <p>Admin and Staff accounts are pre-configured.</p>
+          </div>
         </div>
       </div>
     </div>
