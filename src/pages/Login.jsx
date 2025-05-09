@@ -6,6 +6,14 @@ import { toast } from "sonner";
 import { Printer, Info } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { 
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle 
+} from '@/components/ui/card';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -50,7 +58,7 @@ const Login = () => {
       if (user) {
         toast.success(`Welcome back, ${user.name || 'User'}!`);
         console.log("Login successful, redirecting based on role:", user.role);
-        redirectBasedOnRole(user);
+        // Note: The redirection is now handled in the AuthContext after successful login
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -71,52 +79,84 @@ const Login = () => {
           <p className="text-gray-600 mt-2">Student Print Management System</p>
         </div>
         
-        <div className="bg-white p-8 rounded-lg shadow-sm border">
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email address
-              </label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full"
-                placeholder="Email address"
-              />
+        <Card>
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl text-center">Account Login</CardTitle>
+            <CardDescription className="text-center">
+              Enter your credentials to access your account
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent>
+            <form onSubmit={handleSubmit}>
+              <div className="mb-4">
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email address
+                </label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full"
+                  placeholder="Email address"
+                />
+              </div>
+              
+              <div className="mb-6">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                  Password
+                </label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full"
+                  placeholder="Password"
+                />
+              </div>
+              
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-primary hover:bg-indigo-700"
+              >
+                {loading ? 'Signing in...' : 'Sign in'}
+              </Button>
+            </form>
+          </CardContent>
+          
+          <CardFooter>
+            <div className="w-full">
+              {/* Login Information Card */}
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm">
+                <div className="flex items-center mb-2">
+                  <Info size={16} className="text-blue-600 mr-2" />
+                  <h3 className="font-medium text-blue-800">Pre-configured Accounts:</h3>
+                </div>
+                
+                <div className="space-y-2 pl-6">
+                  <div>
+                    <p className="font-semibold text-gray-800">Admin Login:</p>
+                    <p className="text-gray-700">Email: <span className="font-mono">admin@gmail.com</span></p>
+                    <p className="text-gray-700">Password: <span className="font-mono">password123</span></p>
+                  </div>
+                  
+                  <div>
+                    <p className="font-semibold text-gray-800">Xerox Staff Login:</p>
+                    <p className="text-gray-700">Email: <span className="font-mono">xerox@gmail.com</span></p>
+                    <p className="text-gray-700">Password: <span className="font-mono">password123</span></p>
+                  </div>
+                </div>
+                
+                <p className="mt-3 text-xs text-gray-500">
+                  Note: These are pre-configured accounts. Students need to sign up for new accounts.
+                </p>
+              </div>
             </div>
-            
-            <div className="mb-6">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full"
-                placeholder="Password"
-              />
-            </div>
-            
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-primary hover:bg-indigo-700"
-            >
-              {loading ? 'Signing in...' : 'Sign in'}
-            </Button>
-
-            {/* Information for staff accounts */}
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm">
-              <h3 className="font-medium text-blue-800 mb-2">Staff Login Information:</h3>
-              <p className="mb-1"><strong>For Administrators:</strong> admin@gmail.com / password123</p>
-              <p><strong>For Xerox Staff:</strong> xerox@gmail.com / password123</p>
-            </div>
-          </form>
-        </div>
+          </CardFooter>
+        </Card>
         
         <div className="text-center mt-6">
           <p className="text-gray-600">
