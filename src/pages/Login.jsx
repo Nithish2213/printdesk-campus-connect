@@ -11,7 +11,6 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showInfo, setShowInfo] = useState(false);
   const { login, currentUser } = useAuth();
   const navigate = useNavigate();
 
@@ -23,6 +22,7 @@ const Login = () => {
   }, [currentUser]);
 
   const redirectBasedOnRole = (user) => {
+    console.log("Redirecting based on role:", user.role);
     if (user.role === 'student') {
       navigate('/student/upload');
     } else if (user.role === 'xerox') {
@@ -49,6 +49,7 @@ const Login = () => {
       
       if (user) {
         toast.success(`Welcome back, ${user.name || 'User'}!`);
+        console.log("Login successful, redirecting based on role:", user.role);
         redirectBasedOnRole(user);
       }
     } catch (error) {
@@ -108,12 +109,11 @@ const Login = () => {
               {loading ? 'Signing in...' : 'Sign in'}
             </Button>
 
-            {/* Only for development - hidden in production */}
+            {/* Information for staff accounts */}
             <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm">
-              <h3 className="font-medium text-blue-800 mb-2">Login Information (Development Only):</h3>
-              <p className="mb-1"><strong>Admin:</strong> admin@gmail.com / password123</p>
-              <p className="mb-1"><strong>Xerox:</strong> xerox@gmail.com / password123</p>
-              <p><strong>Student:</strong> Create a new account or use an existing one</p>
+              <h3 className="font-medium text-blue-800 mb-2">Staff Login Information:</h3>
+              <p className="mb-1"><strong>For Administrators:</strong> admin@gmail.com / password123</p>
+              <p><strong>For Xerox Staff:</strong> xerox@gmail.com / password123</p>
             </div>
           </form>
         </div>

@@ -207,6 +207,8 @@ export const AuthProvider = ({ children }) => {
         throw error;
       }
 
+      console.log("Login successful, user data:", data);
+
       if (data.user) {
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
@@ -224,7 +226,7 @@ export const AuthProvider = ({ children }) => {
           ...(profile || {})
         };
 
-        console.log("Logged in user:", user);
+        console.log("Logged in user with profile:", user);
         setCurrentUser(user);
         setSession(data.session);
         return user;

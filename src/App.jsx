@@ -29,6 +29,7 @@ import Completed from "./pages/xerox/Completed.jsx";
 // Admin Pages
 import AdminLayout from "./pages/admin/AdminLayout.jsx";
 import StaffManagement from "./pages/admin/StaffManagement.jsx";
+import UserManagement from "./pages/admin/UserManagement.jsx";
 import RevenueAnalytics from "./pages/admin/RevenueAnalytics.jsx";
 import InventoryManagement from "./pages/admin/InventoryManagement.jsx";
 
@@ -65,6 +66,7 @@ const App = () => {
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminLayout />}>
               <Route path="staff" element={<StaffManagement />} />
+              <Route path="users" element={<UserManagement />} />
               <Route path="revenue" element={<RevenueAnalytics />} />
               <Route path="inventory" element={<InventoryManagement />} />
             </Route>
