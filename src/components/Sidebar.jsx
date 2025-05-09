@@ -7,10 +7,6 @@ import { FileText, User, History, Map, Package, BarChart3, Users, Printer, LogOu
 const Sidebar = () => {
   const { currentUser, logout } = useAuth();
 
-  if (!currentUser) {
-    return null; // Don't render sidebar if user is not authenticated
-  }
-
   // Navigation links based on user role
   const getNavLinks = () => {
     if (currentUser?.role === 'student') {
@@ -44,14 +40,6 @@ const Sidebar = () => {
           <Printer className="mr-2 h-6 w-6" />
           PrintHub
         </NavLink>
-      </div>
-      
-      <div className="p-4 border-b">
-        <div className="text-sm text-gray-500 mb-1">Welcome,</div>
-        <div className="font-medium">{currentUser?.name || 'User'}</div>
-        <div className="text-xs text-gray-500 mt-1">
-          Role: <span className="font-medium capitalize">{currentUser?.role}</span>
-        </div>
       </div>
       
       <nav className="flex-1 p-4">

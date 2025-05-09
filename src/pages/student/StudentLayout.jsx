@@ -6,15 +6,13 @@ import Sidebar from '../../components/Sidebar';
 import { usePrint } from '../../contexts/PrintContext';
 
 const StudentLayout = () => {
-  const auth = useAuth();
+  const { currentUser } = useAuth();
   const { serverActive } = usePrint();
   
-  // Add null check for auth and currentUser
-  if (!auth || !auth.currentUser || auth.currentUser.role !== 'student') {
+  // Protect route - only for students
+  if (!currentUser || currentUser.role !== 'student') {
     return <Navigate to="/login" replace />;
   }
-
-  const { currentUser } = auth;
 
   return (
     <div className="flex h-screen bg-gray-50">

@@ -28,7 +28,7 @@ const cleanupAuthState = () => {
   });
 };
 
-// Function to ensure default accounts exist
+// Utility function to create default accounts if they don't exist
 const createDefaultAccounts = async () => {
   console.log("Checking for default accounts...");
   
@@ -37,71 +37,53 @@ const createDefaultAccounts = async () => {
     await supabase.auth.signOut({ scope: 'global' });
     cleanupAuthState();
     
-    // Check admin account
-    const { data: adminCheckData, error: adminCheckError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('role', 'admin')
-      .single();
-    
-    if (adminCheckError || !adminCheckData) {
-      console.log("No admin account found, creating one...");
-      
-      // Create admin account
-      const { data: adminData, error: adminError } = await supabase.auth.signUp({
-        email: 'admin@gmail.com',
-        password: 'password123',
-        options: {
-          data: {
-            name: 'Admin User',
-            role: 'admin'
-          }
+    // Check if admin account exists by trying to create it
+    console.log("Checking admin account...");
+    const { data: adminData, error: adminError } = await supabase.auth.signUp({
+      email: 'admin@gmail.com',
+      password: 'password123',
+      options: {
+        data: {
+          name: 'Admin User',
+          role: 'admin'
         }
-      });
-      
-      if (adminError) {
-        console.error("Error creating admin account:", adminError);
-      } else {
-        console.log("Admin account created successfully");
       }
-    } else {
-      console.log("Admin account already exists");
-    }
+    });
     
+    if (adminError && adminError.message.includes("User already registered")) {
+      console.log("Admin account already exists");
+    } else if (!adminError) {
+      console.log("Admin account created successfully");
+    } else {
+      console.error("Error checking admin account:", adminError);
+    }
+
+    // Sign out before checking next account
     await supabase.auth.signOut();
     cleanupAuthState();
     
     // Check xerox account
-    const { data: xeroxCheckData, error: xeroxCheckError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('role', 'xerox')
-      .single();
-    
-    if (xeroxCheckError || !xeroxCheckData) {
-      console.log("No xerox account found, creating one...");
-      
-      // Create xerox account
-      const { data: xeroxData, error: xeroxError } = await supabase.auth.signUp({
-        email: 'xerox@gmail.com',
-        password: 'password123',
-        options: {
-          data: {
-            name: 'Xerox Operator',
-            role: 'xerox'
-          }
+    console.log("Checking xerox account...");
+    const { data: xeroxData, error: xeroxError } = await supabase.auth.signUp({
+      email: 'xerox@gmail.com',
+      password: 'password123',
+      options: {
+        data: {
+          name: 'Xerox Operator',
+          role: 'xerox'
         }
-      });
-      
-      if (xeroxError) {
-        console.error("Error creating xerox account:", xeroxError);
-      } else {
-        console.log("Xerox account created successfully");
       }
-    } else {
-      console.log("Xerox account already exists");
-    }
+    });
     
+    if (xeroxError && xeroxError.message.includes("User already registered")) {
+      console.log("Xerox account already exists");
+    } else if (!xeroxError) {
+      console.log("Xerox account created successfully");
+    } else {
+      console.error("Error checking xerox account:", xeroxError);
+    }
+
+    // Final sign out
     await supabase.auth.signOut();
     cleanupAuthState();
     
@@ -144,15 +126,6 @@ export const AuthProvider = ({ children }) => {
             
             console.log("Fetched user profile:", user);
             setCurrentUser(user);
-            
-            // Redirect based on role
-            if (user.role === 'admin') {
-              navigate('/admin/staff');
-            } else if (user.role === 'xerox') {
-              navigate('/xerox/orders');
-            } else if (user.role === 'student') {
-              navigate('/student/upload');
-            }
           } catch (error) {
             console.error("Error fetching user profile:", error);
             setCurrentUser(session.user);
@@ -188,15 +161,6 @@ export const AuthProvider = ({ children }) => {
               
               console.log("Initial profile fetch:", user);
               setCurrentUser(user);
-              
-              // Redirect based on role
-              if (user.role === 'admin') {
-                navigate('/admin/staff');
-              } else if (user.role === 'xerox') {
-                navigate('/xerox/orders');
-              } else if (user.role === 'student') {
-                navigate('/student/upload');
-              }
             } else {
               console.error("Error fetching user profile:", error);
               setCurrentUser(session.user);
@@ -216,7 +180,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, []);
 
   const login = async (email, password) => {
     try {
@@ -259,23 +223,12 @@ export const AuthProvider = ({ children }) => {
 
         const user = {
           ...data.user,
-          ...(profile || {}),
-          role: profile?.role || data.user.user_metadata?.role || 'student'
+          ...(profile || {})
         };
 
         console.log("Logged in user with profile:", user);
         setCurrentUser(user);
         setSession(data.session);
-        
-        // Redirect based on role
-        if (user.role === 'admin') {
-          navigate('/admin/staff');
-        } else if (user.role === 'xerox') {
-          navigate('/xerox/orders');
-        } else if (user.role === 'student') {
-          navigate('/student/upload');
-        }
-        
         return user;
       }
     } catch (error) {

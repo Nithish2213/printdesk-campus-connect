@@ -39,7 +39,6 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        {/* Make sure the PrintProvider is properly nested inside AuthProvider */}
         <PrintProvider>
           <Toaster position="top-right" />
           <Routes>
