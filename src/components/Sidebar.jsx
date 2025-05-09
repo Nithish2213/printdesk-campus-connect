@@ -2,7 +2,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { FileText, User, History, Map, Package, BarChart3, Users, Printer, LogOut, Database } from 'lucide-react';
+import { FileText, User, History, Map, Package, BarChart3, LogOut, Database } from 'lucide-react';
 
 const Sidebar = () => {
   const { currentUser, logout } = useAuth();
@@ -25,7 +25,7 @@ const Sidebar = () => {
       ];
     } else if (currentUser?.role === 'admin') {
       return [
-        { to: '/admin/staff', text: 'Staff Management', icon: <Users className="mr-2 h-5 w-5" /> },
+        { to: '/admin/staff', text: 'Staff Management', icon: <User className="mr-2 h-5 w-5" /> },
         { to: '/admin/revenue', text: 'Revenue Analytics', icon: <BarChart3 className="mr-2 h-5 w-5" /> },
         { to: '/admin/inventory', text: 'Inventory Status', icon: <Database className="mr-2 h-5 w-5" /> },
       ];
@@ -37,7 +37,7 @@ const Sidebar = () => {
     <aside className="w-64 bg-white border-r h-full flex flex-col">
       <div className="p-5 border-b">
         <NavLink to="/" className="font-bold text-xl text-primary flex items-center">
-          <Printer className="mr-2 h-6 w-6" />
+          <Package className="mr-2 h-6 w-6" />
           PrintHub
         </NavLink>
       </div>

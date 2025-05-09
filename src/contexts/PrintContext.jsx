@@ -20,6 +20,37 @@ export function PrintProvider({ children }) {
   const currentUser = auth?.currentUser;
 
   useEffect(() => {
+    // Create storage bucket if it doesn't exist
+    const initializeStorage = async () => {
+      try {
+        const { data: buckets, error: bucketError } = await supabase
+          .storage
+          .listBuckets();
+        
+        const hasPrintFilesBucket = buckets?.some(bucket => bucket.name === 'print-files');
+        
+        if (!hasPrintFilesBucket) {
+          const { error } = await supabase
+            .storage
+            .createBucket('print-files', {
+              public: false,
+              fileSizeLimit: 10485760, // 10MB
+              allowedMimeTypes: ['application/pdf']
+            });
+            
+          if (error) {
+            console.error("Error creating storage bucket:", error);
+          } else {
+            console.log("Created print-files storage bucket");
+          }
+        }
+      } catch (error) {
+        console.error("Error initializing storage:", error);
+      }
+    };
+    
+    initializeStorage();
+    
     // Fetch initial server status
     const fetchServerStatus = async () => {
       try {
@@ -103,7 +134,7 @@ export function PrintProvider({ children }) {
         const ordersForDate = ordersByDate[date];
         const orderCount = ordersForDate.length;
         
-        // Calculate revenue (assuming each order has a price of 5 for simplicity)
+        // Calculate revenue based on actual orders
         const totalRevenue = ordersForDate.reduce((sum, order) => {
           let price = 1; // Base price
           if (order.is_color_print) price += 4;
@@ -174,16 +205,19 @@ export function PrintProvider({ children }) {
             
             if (payload.eventType === 'INSERT') {
               setOrders(prev => [payload.new, ...prev]);
+              generateRevenueData(); // Update revenue on new order
             } else if (payload.eventType === 'UPDATE') {
               setOrders(prev => 
                 prev.map(order => 
                   order.id === payload.new.id ? payload.new : order
                 )
               );
+              generateRevenueData(); // Update revenue on order status change
             } else if (payload.eventType === 'DELETE') {
               setOrders(prev => 
                 prev.filter(order => order.id !== payload.old.id)
               );
+              generateRevenueData(); // Update revenue when order is deleted
             }
           }
         )
@@ -239,7 +273,7 @@ export function PrintProvider({ children }) {
       if (ordersChannel) supabase.removeChannel(ordersChannel);
       if (inventoryChannel) supabase.removeChannel(inventoryChannel);
     };
-  }, [currentUser, orders]);
+  }, [currentUser, orders.length]);
 
   // Function to toggle server status
   const toggleServer = async () => {
@@ -256,6 +290,7 @@ export function PrintProvider({ children }) {
       if (error) throw error;
       
       console.log("Server status toggled:", data);
+      toast.success(`Server ${!serverActive ? 'activated' : 'deactivated'} successfully`);
       // State will be updated by the real-time subscription
       return data;
     } catch (error) {
@@ -282,7 +317,10 @@ export function PrintProvider({ children }) {
         .from('print-files')
         .upload(`${currentUser.id}/${Date.now()}.${fileExt}`, file);
         
-      if (fileError) throw fileError;
+      if (fileError) {
+        console.error("File upload error:", fileError);
+        throw new Error(`Failed to upload file: ${fileError.message}`);
+      }
       
       const fileUrl = fileData.path;
       
@@ -307,16 +345,17 @@ export function PrintProvider({ children }) {
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error("Order creation error:", error);
+        throw new Error(`Failed to create order: ${error.message}`);
+      }
       
       console.log("Order submitted successfully:", data);
-      toast.success("Order submitted");
       return data;
       
     } catch (error) {
       console.error("Error submitting order:", error);
-      toast.error("Failed to submit order: " + error.message);
-      return null;
+      throw error;
     } finally {
       setLoading(false);
     }

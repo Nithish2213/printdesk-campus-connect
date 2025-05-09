@@ -31,7 +31,7 @@ import Inventory from "./pages/xerox/Inventory.jsx";
 import AdminLayout from "./pages/admin/AdminLayout.jsx";
 import StaffManagement from "./pages/admin/StaffManagement.jsx";
 import RevenueAnalytics from "./pages/admin/RevenueAnalytics.jsx";
-import InventoryManagement from "./pages/admin/InventoryManagement.jsx";
+import InventoryStatus from "./pages/admin/InventoryManagement.jsx";
 
 const queryClient = new QueryClient();
 
@@ -40,7 +40,7 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <PrintProvider>
-          <Toaster position="top-right" />
+          <Toaster position="top-right" richColors />
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Index />} />
@@ -68,7 +68,7 @@ const App = () => {
             <Route path="/admin" element={<AdminLayout />}>
               <Route path="staff" element={<StaffManagement />} />
               <Route path="revenue" element={<RevenueAnalytics />} />
-              <Route path="inventory" element={<InventoryManagement />} />
+              <Route path="inventory" element={<InventoryStatus />} />
             </Route>
 
             {/* 404 Route */}

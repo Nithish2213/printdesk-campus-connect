@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePrint } from '../../contexts/PrintContext';
@@ -94,12 +95,15 @@ const Upload = () => {
         message
       );
       
-      if (order) {
+      if (order && order.id) {
+        toast.success("Order submitted successfully!");
         navigate(`/student/payment/${order.id}`);
+      } else {
+        throw new Error("Failed to create order");
       }
     } catch (error) {
       console.error("Order submission error:", error);
-      toast.error("Failed to submit order");
+      toast.error(error.message || "Failed to submit order");
     } finally {
       setIsSubmitting(false);
     }
