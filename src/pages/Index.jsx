@@ -2,37 +2,11 @@
 import React, { useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { usePrint } from '../contexts/PrintContext';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
   const { currentUser } = useAuth();
-  const { serverActive } = usePrint();
   const navigate = useNavigate();
-  
-  useEffect(() => {
-    // Check server status on load
-    const checkServerStatus = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('server_status')
-          .select('is_active')
-          .eq('id', 1)
-          .single();
-          
-        if (!error && data && !data.is_active) {
-          toast.info("The print server is currently offline. Some features may be limited.");
-        }
-      } catch (error) {
-        console.error("Error checking server status:", error);
-      }
-    };
-    
-    if (currentUser) {
-      checkServerStatus();
-    }
-  }, [currentUser]);
   
   // If user is authenticated, redirect based on role
   if (currentUser) {

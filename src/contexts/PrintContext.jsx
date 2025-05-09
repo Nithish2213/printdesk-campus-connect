@@ -13,7 +13,8 @@ export function usePrint() {
 export function PrintProvider({ children }) {
   const [serverActive, setServerActive] = useState(true);
   const [loading, setLoading] = useState(true);
-  const { currentUser } = useAuth();
+  const auth = useAuth();
+  const currentUser = auth?.currentUser;
 
   useEffect(() => {
     // Fetch initial server status
