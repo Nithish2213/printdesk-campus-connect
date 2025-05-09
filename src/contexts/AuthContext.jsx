@@ -28,70 +28,6 @@ const cleanupAuthState = () => {
   });
 };
 
-// Utility function to create default accounts if they don't exist
-const createDefaultAccounts = async () => {
-  console.log("Checking for default accounts...");
-  
-  try {
-    // First ensure we're completely signed out
-    await supabase.auth.signOut({ scope: 'global' });
-    cleanupAuthState();
-    
-    // Check if admin account exists by trying to create it
-    console.log("Checking admin account...");
-    const { data: adminData, error: adminError } = await supabase.auth.signUp({
-      email: 'admin@gmail.com',
-      password: 'password123',
-      options: {
-        data: {
-          name: 'Admin User',
-          role: 'admin'
-        }
-      }
-    });
-    
-    if (adminError && adminError.message.includes("User already registered")) {
-      console.log("Admin account already exists");
-    } else if (!adminError) {
-      console.log("Admin account created successfully");
-    } else {
-      console.error("Error checking admin account:", adminError);
-    }
-
-    // Sign out before checking next account
-    await supabase.auth.signOut();
-    cleanupAuthState();
-    
-    // Check xerox account
-    console.log("Checking xerox account...");
-    const { data: xeroxData, error: xeroxError } = await supabase.auth.signUp({
-      email: 'xerox@gmail.com',
-      password: 'password123',
-      options: {
-        data: {
-          name: 'Xerox Operator',
-          role: 'xerox'
-        }
-      }
-    });
-    
-    if (xeroxError && xeroxError.message.includes("User already registered")) {
-      console.log("Xerox account already exists");
-    } else if (!xeroxError) {
-      console.log("Xerox account created successfully");
-    } else {
-      console.error("Error checking xerox account:", xeroxError);
-    }
-
-    // Final sign out
-    await supabase.auth.signOut();
-    cleanupAuthState();
-    
-  } catch (error) {
-    console.error("Error checking/creating default accounts:", error);
-  }
-};
-
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [session, setSession] = useState(null);
@@ -99,12 +35,8 @@ export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Create default accounts if needed
-    createDefaultAccounts();
-    
     // Set up Supabase auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth state changed:", event, session);
       setSession(session);
       
       if (session) {
@@ -119,13 +51,10 @@ export const AuthProvider = ({ children }) => {
               
             if (error) throw error;
             
-            const user = {
+            setCurrentUser({
               ...session.user,
               ...profile
-            };
-            
-            console.log("Fetched user profile:", user);
-            setCurrentUser(user);
+            });
           } catch (error) {
             console.error("Error fetching user profile:", error);
             setCurrentUser(session.user);
@@ -141,7 +70,6 @@ export const AuthProvider = ({ children }) => {
 
     // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("Initial session check:", session);
       setSession(session);
       
       if (session) {
@@ -154,13 +82,10 @@ export const AuthProvider = ({ children }) => {
               .single();
               
             if (!error && profile) {
-              const user = {
+              setCurrentUser({
                 ...session.user,
                 ...profile
-              };
-              
-              console.log("Initial profile fetch:", user);
-              setCurrentUser(user);
+              });
             } else {
               console.error("Error fetching user profile:", error);
               setCurrentUser(session.user);
@@ -184,12 +109,10 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      console.log("Attempting login with:", email);
-      
       // Clean up existing auth state
       cleanupAuthState();
       
-      // Try global sign out first to ensure clean state
+      // Try global sign out first
       try {
         await supabase.auth.signOut({ scope: 'global' });
       } catch (err) {
@@ -202,31 +125,22 @@ export const AuthProvider = ({ children }) => {
         password
       });
 
-      if (error) {
-        console.error("Login error:", error);
-        throw error;
-      }
-
-      console.log("Login successful, user data:", data);
+      if (error) throw error;
 
       if (data.user) {
-        const { data: profile, error: profileError } = await supabase
+        const { data: profile, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', data.user.id)
           .single();
 
-        if (profileError) {
-          console.error("Error fetching profile:", profileError);
-          // Continue anyway, profile might be created by trigger
-        }
+        if (error) throw error;
 
         const user = {
           ...data.user,
-          ...(profile || {})
+          ...profile
         };
 
-        console.log("Logged in user with profile:", user);
         setCurrentUser(user);
         setSession(data.session);
         return user;

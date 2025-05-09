@@ -2,13 +2,11 @@
 import React, { useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { usePrint } from '../contexts/PrintContext';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
   const { currentUser } = useAuth();
-  const { serverActive } = usePrint();
   const navigate = useNavigate();
   
   useEffect(() => {
@@ -34,10 +32,7 @@ const Index = () => {
     }
   }, [currentUser]);
   
-  // If user is authenticated, redirect based on role
   if (currentUser) {
-    console.log("Redirecting user based on role:", currentUser.role);
-    
     // Redirect based on user role
     switch (currentUser.role) {
       case 'student':

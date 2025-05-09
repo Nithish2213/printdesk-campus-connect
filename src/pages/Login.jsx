@@ -3,9 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from "sonner";
-import { Printer, Info } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Printer } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -22,7 +20,6 @@ const Login = () => {
   }, [currentUser]);
 
   const redirectBasedOnRole = (user) => {
-    console.log("Redirecting based on role:", user.role);
     if (user.role === 'student') {
       navigate('/student/upload');
     } else if (user.role === 'xerox') {
@@ -49,12 +46,11 @@ const Login = () => {
       
       if (user) {
         toast.success(`Welcome back, ${user.name || 'User'}!`);
-        console.log("Login successful, redirecting based on role:", user.role);
         redirectBasedOnRole(user);
       }
     } catch (error) {
       console.error('Login error:', error);
-      toast.error(error.message || "Failed to log in. Please check your credentials.");
+      toast.error(error.message || "Failed to log in");
     } finally {
       setLoading(false);
     }
@@ -77,12 +73,12 @@ const Login = () => {
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                 Email address
               </label>
-              <Input
+              <input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full"
+                className="w-full p-3 border rounded-md focus:ring-primary focus:border-primary"
                 placeholder="Email address"
               />
             </div>
@@ -91,30 +87,23 @@ const Login = () => {
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                 Password
               </label>
-              <Input
+              <input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full"
+                className="w-full p-3 border rounded-md focus:ring-primary focus:border-primary"
                 placeholder="Password"
               />
             </div>
             
-            <Button
+            <button
               type="submit"
               disabled={loading}
-              className="w-full bg-primary hover:bg-indigo-700"
+              className="w-full bg-primary hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-md transition duration-150 disabled:opacity-50"
             >
               {loading ? 'Signing in...' : 'Sign in'}
-            </Button>
-
-            {/* Information for staff accounts */}
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm">
-              <h3 className="font-medium text-blue-800 mb-2">Staff Login Information:</h3>
-              <p className="mb-1"><strong>For Administrators:</strong> admin@gmail.com / password123</p>
-              <p><strong>For Xerox Staff:</strong> xerox@gmail.com / password123</p>
-            </div>
+            </button>
           </form>
         </div>
         
@@ -125,10 +114,6 @@ const Login = () => {
               Sign up
             </Link>
           </p>
-          <div className="text-xs text-gray-500 mt-3">
-            <p>Note: Only students can create new accounts.</p>
-            <p>Admin and Staff accounts are pre-configured.</p>
-          </div>
         </div>
       </div>
     </div>
