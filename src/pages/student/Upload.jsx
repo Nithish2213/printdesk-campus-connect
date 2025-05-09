@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePrint } from '../../contexts/PrintContext';
@@ -13,6 +12,7 @@ const Upload = () => {
   const [colorPrint, setColorPrint] = useState(false);
   const [doubleSided, setDoubleSided] = useState(false);
   const [message, setMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef(null);
   const { currentUser } = useAuth();
   const { submitOrder, serverActive } = usePrint();
@@ -82,17 +82,26 @@ const Upload = () => {
       return;
     }
     
-    const order = await submitOrder(
-      file,
-      printType,
-      copies,
-      colorPrint,
-      doubleSided,
-      message
-    );
-    
-    if (order) {
-      navigate(`/student/payment/${order.id}`);
+    try {
+      setIsSubmitting(true);
+      
+      const order = await submitOrder(
+        file,
+        printType,
+        copies,
+        colorPrint,
+        doubleSided,
+        message
+      );
+      
+      if (order) {
+        navigate(`/student/payment/${order.id}`);
+      }
+    } catch (error) {
+      console.error("Order submission error:", error);
+      toast.error("Failed to submit order");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -250,10 +259,10 @@ const Upload = () => {
           
           <button
             type="submit"
-            disabled={!file || !serverActive}
+            disabled={!file || !serverActive || isSubmitting}
             className="w-full bg-primary hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-md transition duration-150 disabled:opacity-50"
           >
-            Submit Print Order
+            {isSubmitting ? 'Submitting...' : 'Submit Print Order'}
           </button>
         </form>
       </div>
