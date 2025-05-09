@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { usePrint } from '../../contexts/PrintContext';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Calendar, CheckCircle, Clock, Truck, Search } from 'lucide-react';
 import { 
   Tabs, 
@@ -10,11 +10,76 @@ import {
 } from "../../components/ui/tabs";
 
 const History = () => {
-  const { orders } = usePrint();
+  const [orders, setOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  
+  // Fetch orders from Supabase
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*, profiles:user_id(*)')
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          console.error('Error fetching orders:', error);
+          return;
+        }
+        
+        console.log("Fetched orders:", data);
+        setOrders(data || []);
+      } catch (error) {
+        console.error('Error in orders fetch:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchOrders();
+    
+    // Set up realtime subscription for order updates
+    const channel = supabase
+      .channel('orders-changes')
+      .on('postgres_changes', 
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders'
+        }, 
+        (payload) => {
+          console.log("Realtime order update received:", payload);
+          
+          if (payload.eventType === 'INSERT') {
+            setOrders(prev => [payload.new, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setOrders(prev => 
+              prev.map(order => 
+                order.id === payload.new.id ? payload.new : order
+              )
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setOrders(prev => 
+              prev.filter(order => order.id !== payload.old.id)
+            );
+          }
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
   
   // Filter orders based on status and search term
   const filterOrders = (status, searchTerm) => {
+    // Make sure orders exists and is an array
+    if (!orders || !Array.isArray(orders)) {
+      return [];
+    }
+    
     return orders
       .filter(order => {
         const matchesStatus = status === 'all' || 
@@ -24,13 +89,13 @@ const History = () => {
                              (status === 'delivered' && order.status === 'Delivered');
         
         const matchesSearch = !searchTerm || 
-                             order.fileName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                             order.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                             order.orderNumber.toString().includes(searchTerm);
+                             (order.file_name && order.file_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                             (order.profiles?.name && order.profiles.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                             (order.id && order.id.toString().includes(searchTerm));
         
-        return order.paid && matchesStatus && matchesSearch;
+        return order.payment_status === 'paid' && matchesStatus && matchesSearch;
       })
-      .sort((a, b) => new Date(b.dateCreated) - new Date(a.dateCreated));
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   };
 
   const getStatusIcon = (status) => {
@@ -62,7 +127,7 @@ const History = () => {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b">
-              <th className="py-3 px-4 text-left">Order #</th>
+              <th className="py-3 px-4 text-left">Order ID</th>
               <th className="py-3 px-4 text-left">Date</th>
               <th className="py-3 px-4 text-left">File</th>
               <th className="py-3 px-4 text-left">Student</th>
@@ -73,11 +138,11 @@ const History = () => {
           <tbody>
             {orders.map((order) => (
               <tr key={order.id} className="border-b hover:bg-gray-50">
-                <td className="py-3 px-4">{order.orderNumber}</td>
-                <td className="py-3 px-4">{formatDate(order.dateCreated)}</td>
-                <td className="py-3 px-4">{order.fileName}</td>
-                <td className="py-3 px-4">{order.studentName}</td>
-                <td className="py-3 px-4">{order.printType}</td>
+                <td className="py-3 px-4">{order.id.substring(0, 8)}</td>
+                <td className="py-3 px-4">{formatDate(order.created_at)}</td>
+                <td className="py-3 px-4">{order.file_name || 'Unnamed file'}</td>
+                <td className="py-3 px-4">{order.profiles ? order.profiles.name : 'Unknown'}</td>
+                <td className="py-3 px-4">{order.paper_size || 'Standard'}</td>
                 <td className="py-3 px-4">
                   <div className="flex items-center">
                     {getStatusIcon(order.status)}
@@ -91,6 +156,17 @@ const History = () => {
       </div>
     );
   };
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-10">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-gray-500">Loading orders history...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">

@@ -13,6 +13,7 @@ export function usePrint() {
 export function PrintProvider({ children }) {
   const [serverActive, setServerActive] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState([]);
   const auth = useAuth();
   const currentUser = auth?.currentUser;
 
@@ -39,10 +40,31 @@ export function PrintProvider({ children }) {
       }
     };
 
-    fetchServerStatus();
+    // Fetch orders for admin/xerox users
+    const fetchOrders = async () => {
+      if (currentUser && (currentUser.role === 'xerox' || currentUser.role === 'admin')) {
+        try {
+          const { data, error } = await supabase
+            .from('orders')
+            .select('*')
+            .order('created_at', { ascending: false });
+            
+          if (error) throw error;
+          
+          console.log("Fetched orders for admin/xerox:", data);
+          setOrders(data || []);
+        } catch (error) {
+          console.error("Error fetching orders:", error);
+          setOrders([]);
+        }
+      }
+    };
 
-    // Set up real-time subscription
-    const channel = supabase
+    fetchServerStatus();
+    fetchOrders();
+
+    // Set up real-time subscription for server status
+    const serverStatusChannel = supabase
       .channel('server-status-changes')
       .on('postgres_changes', 
         {
@@ -63,10 +85,44 @@ export function PrintProvider({ children }) {
       )
       .subscribe();
       
+    // Set up real-time subscription for orders (only for admin/xerox)
+    let ordersChannel = null;
+    
+    if (currentUser && (currentUser.role === 'xerox' || currentUser.role === 'admin')) {
+      ordersChannel = supabase
+        .channel('orders-changes')
+        .on('postgres_changes', 
+          {
+            event: '*',
+            schema: 'public',
+            table: 'orders'
+          }, 
+          (payload) => {
+            console.log("Order update received:", payload);
+            
+            if (payload.eventType === 'INSERT') {
+              setOrders(prev => [payload.new, ...prev]);
+            } else if (payload.eventType === 'UPDATE') {
+              setOrders(prev => 
+                prev.map(order => 
+                  order.id === payload.new.id ? payload.new : order
+                )
+              );
+            } else if (payload.eventType === 'DELETE') {
+              setOrders(prev => 
+                prev.filter(order => order.id !== payload.old.id)
+              );
+            }
+          }
+        )
+        .subscribe();
+    }
+      
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(serverStatusChannel);
+      if (ordersChannel) supabase.removeChannel(ordersChannel);
     };
-  }, []);
+  }, [currentUser]);
 
   const toggleServer = async () => {
     try {
@@ -94,6 +150,7 @@ export function PrintProvider({ children }) {
     serverActive,
     toggleServer,
     loading,
+    orders,
   };
 
   return (
