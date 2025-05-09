@@ -6,10 +6,10 @@ import { usePrint } from '../../contexts/PrintContext';
 import XeroxSidebar from '../../components/XeroxSidebar';
 
 const XeroxLayout = () => {
-  const { currentUser } = useAuth();
+  const auth = useAuth();
   
-  // Protect route - only for xerox staff
-  if (!currentUser || currentUser.role !== 'xerox') {
+  // Add null check for auth and currentUser
+  if (!auth || !auth.currentUser || auth.currentUser.role !== 'xerox') {
     return <Navigate to="/login" replace />;
   }
 

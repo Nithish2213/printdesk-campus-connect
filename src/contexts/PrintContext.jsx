@@ -13,7 +13,10 @@ export function usePrint() {
 export function PrintProvider({ children }) {
   const [serverActive, setServerActive] = useState(true);
   const [loading, setLoading] = useState(true);
-  const { currentUser } = useAuth();
+  
+  // Remove the currentUser destructuring that's causing the error
+  // Instead, access the auth context in a safer way
+  const authContext = useAuth();
 
   useEffect(() => {
     // Fetch initial server status
@@ -69,6 +72,14 @@ export function PrintProvider({ children }) {
 
   const toggleServer = async () => {
     try {
+      // Only allow this action if the user is authenticated and has the right role
+      if (!authContext?.currentUser || 
+          (authContext.currentUser.role !== 'admin' && 
+           authContext.currentUser.role !== 'xerox')) {
+        toast.error("You don't have permission to change server status");
+        return null;
+      }
+      
       const { data, error } = await supabase
         .from('server_status')
         .update({ 
