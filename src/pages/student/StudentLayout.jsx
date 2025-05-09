@@ -6,13 +6,7 @@ import Sidebar from '../../components/Sidebar';
 import { usePrint } from '../../contexts/PrintContext';
 
 const StudentLayout = () => {
-  const auth = useAuth();
-  // Safely handle possible undefined auth context
-  if (!auth) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  const { currentUser } = auth;
+  const { currentUser } = useAuth();
   const { serverActive } = usePrint();
   
   // Protect route - only for students

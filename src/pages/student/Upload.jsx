@@ -13,7 +13,6 @@ const Upload = () => {
   const [colorPrint, setColorPrint] = useState(false);
   const [doubleSided, setDoubleSided] = useState(false);
   const [message, setMessage] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef(null);
   const { currentUser } = useAuth();
   const { submitOrder, serverActive } = usePrint();
@@ -83,29 +82,17 @@ const Upload = () => {
       return;
     }
     
-    try {
-      setIsSubmitting(true);
-      
-      const order = await submitOrder(
-        file,
-        printType,
-        copies,
-        colorPrint,
-        doubleSided,
-        message
-      );
-      
-      if (order && order.id) {
-        toast.success("Order submitted successfully!");
-        navigate(`/student/payment/${order.id}`);
-      } else {
-        throw new Error("Failed to create order");
-      }
-    } catch (error) {
-      console.error("Order submission error:", error);
-      toast.error(error.message || "Failed to submit order");
-    } finally {
-      setIsSubmitting(false);
+    const order = await submitOrder(
+      file,
+      printType,
+      copies,
+      colorPrint,
+      doubleSided,
+      message
+    );
+    
+    if (order) {
+      navigate(`/student/payment/${order.id}`);
     }
   };
 
@@ -263,10 +250,10 @@ const Upload = () => {
           
           <button
             type="submit"
-            disabled={!file || !serverActive || isSubmitting}
+            disabled={!file || !serverActive}
             className="w-full bg-primary hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-md transition duration-150 disabled:opacity-50"
           >
-            {isSubmitting ? 'Submitting...' : 'Submit Print Order'}
+            Submit Print Order
           </button>
         </form>
       </div>

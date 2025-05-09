@@ -3,23 +3,17 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '../../contexts/AuthContext';
 import OrderCard from '../../components/OrderCard';
-import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
 
 const Track = () => {
   const { currentUser } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!currentUser) return;
     
     const fetchOrders = async () => {
       try {
-        setLoading(true);
-        setError(null);
-        
         const { data, error } = await supabase
           .from('orders')
           .select('*')
@@ -33,8 +27,6 @@ const Track = () => {
         setOrders(data || []);
       } catch (error) {
         console.error('Error fetching orders:', error);
-        setError('Failed to load your orders. Please try again.');
-        toast.error('Failed to load orders');
       } finally {
         setLoading(false);
       }
@@ -56,22 +48,12 @@ const Track = () => {
           if (payload.eventType === 'INSERT' && payload.new.payment_status === 'paid' && 
               !['Completed', 'Delivered'].includes(payload.new.status)) {
             setOrders(prev => [payload.new, ...prev]);
-            toast.success('New order received!');
           } else if (payload.eventType === 'UPDATE') {
             if (['Completed', 'Delivered'].includes(payload.new.status)) {
               // Remove from active orders when completed
               setOrders(prev => prev.filter(order => order.id !== payload.new.id));
-              toast.info(`Order #${payload.new.id.substring(0,8)} has been ${payload.new.status.toLowerCase()}`);
-            } else if (payload.new.status !== payload.old.status) {
-              // Update the order in the list and show notification
-              setOrders(prev => 
-                prev.map(order => 
-                  order.id === payload.new.id ? payload.new : order
-                )
-              );
-              toast.info(`Order #${payload.new.id.substring(0,8)} is now ${payload.new.status}`);
             } else {
-              // Just update the order
+              // Update the order in the list
               setOrders(prev => 
                 prev.map(order => 
                   order.id === payload.new.id ? payload.new : order
@@ -98,18 +80,8 @@ const Track = () => {
       
       {loading ? (
         <div className="text-center py-10">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
           <p className="mt-2 text-gray-500">Loading your orders...</p>
-        </div>
-      ) : error ? (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <p className="text-red-600">{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="mt-3 px-4 py-2 bg-primary text-white rounded-md hover:bg-indigo-700"
-          >
-            Try Again
-          </button>
         </div>
       ) : orders.length === 0 ? (
         <div className="bg-white rounded-lg shadow-sm border p-8 text-center">

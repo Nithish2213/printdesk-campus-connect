@@ -2,7 +2,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { FileText, User, History, Map, Package, BarChart3, LogOut, Database } from 'lucide-react';
+import { FileText, User, History, Map, Package, BarChart3, Users, Printer, LogOut, UserCheck } from 'lucide-react';
 
 const Sidebar = () => {
   const { currentUser, logout } = useAuth();
@@ -21,13 +21,13 @@ const Sidebar = () => {
         { to: '/xerox/orders', text: 'Print Orders', icon: <FileText className="mr-2 h-5 w-5" /> },
         { to: '/xerox/history', text: 'Order History', icon: <History className="mr-2 h-5 w-5" /> },
         { to: '/xerox/completed', text: 'Completed Orders', icon: <Package className="mr-2 h-5 w-5" /> },
-        { to: '/xerox/inventory', text: 'Inventory Management', icon: <Database className="mr-2 h-5 w-5" /> },
       ];
     } else if (currentUser?.role === 'admin') {
       return [
-        { to: '/admin/staff', text: 'Staff Management', icon: <User className="mr-2 h-5 w-5" /> },
+        { to: '/admin/staff', text: 'Staff Management', icon: <Users className="mr-2 h-5 w-5" /> },
+        { to: '/admin/users', text: 'User Management', icon: <UserCheck className="mr-2 h-5 w-5" /> },
         { to: '/admin/revenue', text: 'Revenue Analytics', icon: <BarChart3 className="mr-2 h-5 w-5" /> },
-        { to: '/admin/inventory', text: 'Inventory Status', icon: <Database className="mr-2 h-5 w-5" /> },
+        { to: '/admin/inventory', text: 'Inventory Management', icon: <Package className="mr-2 h-5 w-5" /> },
       ];
     }
     return [];
@@ -37,7 +37,7 @@ const Sidebar = () => {
     <aside className="w-64 bg-white border-r h-full flex flex-col">
       <div className="p-5 border-b">
         <NavLink to="/" className="font-bold text-xl text-primary flex items-center">
-          <Package className="mr-2 h-6 w-6" />
+          <Printer className="mr-2 h-6 w-6" />
           PrintHub
         </NavLink>
       </div>

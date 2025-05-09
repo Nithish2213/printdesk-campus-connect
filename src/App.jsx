@@ -25,13 +25,13 @@ import XeroxLayout from "./pages/xerox/XeroxLayout.jsx";
 import Orders from "./pages/xerox/Orders.jsx";
 import { default as XeroxHistory } from "./pages/xerox/History.jsx";
 import Completed from "./pages/xerox/Completed.jsx";
-import Inventory from "./pages/xerox/Inventory.jsx";
 
 // Admin Pages
 import AdminLayout from "./pages/admin/AdminLayout.jsx";
 import StaffManagement from "./pages/admin/StaffManagement.jsx";
+import UserManagement from "./pages/admin/UserManagement.jsx";
 import RevenueAnalytics from "./pages/admin/RevenueAnalytics.jsx";
-import InventoryStatus from "./pages/admin/InventoryManagement.jsx";
+import InventoryManagement from "./pages/admin/InventoryManagement.jsx";
 
 const queryClient = new QueryClient();
 
@@ -40,7 +40,7 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <PrintProvider>
-          <Toaster position="top-right" richColors />
+          <Toaster position="top-right" />
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Index />} />
@@ -61,14 +61,14 @@ const App = () => {
               <Route path="orders" element={<Orders />} />
               <Route path="history" element={<XeroxHistory />} />
               <Route path="completed" element={<Completed />} />
-              <Route path="inventory" element={<Inventory />} />
             </Route>
 
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminLayout />}>
               <Route path="staff" element={<StaffManagement />} />
+              <Route path="users" element={<UserManagement />} />
               <Route path="revenue" element={<RevenueAnalytics />} />
-              <Route path="inventory" element={<InventoryStatus />} />
+              <Route path="inventory" element={<InventoryManagement />} />
             </Route>
 
             {/* 404 Route */}

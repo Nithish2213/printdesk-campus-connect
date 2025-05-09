@@ -28,19 +28,67 @@ const cleanupAuthState = () => {
   });
 };
 
-// Store predefined users for admin and xerox
-const PREDEFINED_USERS = {
-  admin: {
-    email: 'admin@gmail.com',
-    password: 'password123',
-    name: 'Admin User',
-    role: 'admin'
-  },
-  xerox: {
-    email: 'xerox@gmail.com',
-    password: 'password123',
-    name: 'Xerox Operator',
-    role: 'xerox'
+// Utility function to create default accounts if they don't exist
+const createDefaultAccounts = async () => {
+  console.log("Checking for default accounts...");
+  
+  try {
+    // First ensure we're completely signed out
+    await supabase.auth.signOut({ scope: 'global' });
+    cleanupAuthState();
+    
+    // Check if admin account exists by trying to create it
+    console.log("Checking admin account...");
+    const { data: adminData, error: adminError } = await supabase.auth.signUp({
+      email: 'admin@gmail.com',
+      password: 'password123',
+      options: {
+        data: {
+          name: 'Admin User',
+          role: 'admin'
+        }
+      }
+    });
+    
+    if (adminError && adminError.message.includes("User already registered")) {
+      console.log("Admin account already exists");
+    } else if (!adminError) {
+      console.log("Admin account created successfully");
+    } else {
+      console.error("Error checking admin account:", adminError);
+    }
+
+    // Sign out before checking next account
+    await supabase.auth.signOut();
+    cleanupAuthState();
+    
+    // Check xerox account
+    console.log("Checking xerox account...");
+    const { data: xeroxData, error: xeroxError } = await supabase.auth.signUp({
+      email: 'xerox@gmail.com',
+      password: 'password123',
+      options: {
+        data: {
+          name: 'Xerox Operator',
+          role: 'xerox'
+        }
+      }
+    });
+    
+    if (xeroxError && xeroxError.message.includes("User already registered")) {
+      console.log("Xerox account already exists");
+    } else if (!xeroxError) {
+      console.log("Xerox account created successfully");
+    } else {
+      console.error("Error checking xerox account:", xeroxError);
+    }
+
+    // Final sign out
+    await supabase.auth.signOut();
+    cleanupAuthState();
+    
+  } catch (error) {
+    console.error("Error checking/creating default accounts:", error);
   }
 };
 
@@ -50,134 +98,93 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Helper function to handle predefined users
-  const handlePredefinedLogin = (email, password) => {
-    // Check if login is for admin
-    if (email === PREDEFINED_USERS.admin.email && password === PREDEFINED_USERS.admin.password) {
-      const adminUser = {
-        id: 'admin-user-id',
-        email: PREDEFINED_USERS.admin.email,
-        name: PREDEFINED_USERS.admin.name,
-        role: PREDEFINED_USERS.admin.role
-      };
-      
-      // Store in localStorage for persistent login
-      localStorage.setItem('predefinedUser', JSON.stringify(adminUser));
-      
-      setCurrentUser(adminUser);
-      return adminUser;
-    }
-    
-    // Check if login is for xerox
-    if (email === PREDEFINED_USERS.xerox.email && password === PREDEFINED_USERS.xerox.password) {
-      const xeroxUser = {
-        id: 'xerox-user-id',
-        email: PREDEFINED_USERS.xerox.email,
-        name: PREDEFINED_USERS.xerox.name,
-        role: PREDEFINED_USERS.xerox.role
-      };
-      
-      // Store in localStorage for persistent login
-      localStorage.setItem('predefinedUser', JSON.stringify(xeroxUser));
-      
-      setCurrentUser(xeroxUser);
-      return xeroxUser;
-    }
-    
-    return null;
-  };
-
-  // Check for stored predefined user on startup
   useEffect(() => {
-    const storedPredefinedUser = localStorage.getItem('predefinedUser');
+    // Create default accounts if needed
+    createDefaultAccounts();
     
-    if (storedPredefinedUser) {
-      const user = JSON.parse(storedPredefinedUser);
-      setCurrentUser(user);
-      setLoading(false);
-    } else {
-      // Continue with regular Supabase auth checks
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        setSession(session);
-        
-        if (session) {
-          setTimeout(async () => {
-            try {
-              const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-                
-              if (!error && profile) {
-                const user = {
-                  ...session.user,
-                  ...profile
-                };
-                
-                setCurrentUser(user);
-              } else {
-                setCurrentUser(session.user);
-              }
-            } catch (error) {
-              console.error("Session error:", error);
-              setCurrentUser(null);
-            } finally {
-              setLoading(false);
-            }
-          }, 0);
-        } else {
-          setLoading(false);
-        }
-      });
+    // Set up Supabase auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state changed:", event, session);
+      setSession(session);
       
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-        setSession(session);
-        
-        if (session) {
-          setTimeout(async () => {
-            try {
-              const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-                
-              if (error) throw error;
+      if (session) {
+        // Use setTimeout to avoid potential deadlocks
+        setTimeout(async () => {
+          try {
+            const { data: profile, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
               
+            if (error) throw error;
+            
+            const user = {
+              ...session.user,
+              ...profile
+            };
+            
+            console.log("Fetched user profile:", user);
+            setCurrentUser(user);
+          } catch (error) {
+            console.error("Error fetching user profile:", error);
+            setCurrentUser(session.user);
+          } finally {
+            setLoading(false);
+          }
+        }, 0);
+      } else {
+        setCurrentUser(null);
+        setLoading(false);
+      }
+    });
+
+    // Check current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("Initial session check:", session);
+      setSession(session);
+      
+      if (session) {
+        setTimeout(async () => {
+          try {
+            const { data: profile, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+              
+            if (!error && profile) {
               const user = {
                 ...session.user,
                 ...profile
               };
               
+              console.log("Initial profile fetch:", user);
               setCurrentUser(user);
-            } catch (error) {
+            } else {
               console.error("Error fetching user profile:", error);
               setCurrentUser(session.user);
             }
-          }, 0);
-        } else {
-          setCurrentUser(null);
-        }
-      });
-      
-      return () => {
-        subscription.unsubscribe();
-      };
-    }
+          } catch (error) {
+            console.error("Session error:", error);
+            setCurrentUser(null);
+          } finally {
+            setLoading(false);
+          }
+        }, 0);
+      } else {
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email, password) => {
     try {
-      // First try predefined users
-      const predefinedUser = handlePredefinedLogin(email, password);
-      if (predefinedUser) {
-        console.log("Logged in as predefined user:", predefinedUser);
-        return predefinedUser;
-      }
-      
-      // If not predefined, try regular Supabase auth
-      console.log("Attempting regular login with:", email);
+      console.log("Attempting login with:", email);
       
       // Clean up existing auth state
       cleanupAuthState();
@@ -232,11 +239,6 @@ export const AuthProvider = ({ children }) => {
 
   const signup = async (name, rollNumber, email, password) => {
     try {
-      // Don't allow signing up with predefined emails
-      if (email === PREDEFINED_USERS.admin.email || email === PREDEFINED_USERS.xerox.email) {
-        throw new Error("This email is reserved for system use. Please use a different email.");
-      }
-      
       // Clean up existing auth state
       cleanupAuthState();
       
@@ -265,13 +267,10 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      // First clear predefined users if they exist
-      localStorage.removeItem('predefinedUser');
-      
-      // Clean up auth state
+      // Clean up auth state first
       cleanupAuthState();
       
-      // Attempt global sign out for Supabase auth
+      // Attempt global sign out
       const { error } = await supabase.auth.signOut({ scope: 'global' });
       if (error) throw error;
       

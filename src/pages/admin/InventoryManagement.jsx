@@ -1,307 +1,329 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { AlertTriangle, Loader2, Package, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { Plus, Edit, Trash, X } from 'lucide-react';
+import { toast } from "sonner";
 
-const InventoryStatus = () => {
+const InventoryManagement = () => {
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [alerts, setAlerts] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    category: 'Paper',
+    quantity: 0
+  });
 
+  // Fetch inventory items from database
   useEffect(() => {
-    fetchInventory();
-    
-    // Set up realtime subscription for inventory changes
-    const inventorySubscription = supabase
-      .channel('inventory-status-updates')
-      .on('postgres_changes', 
-        {
-          event: '*',
-          schema: 'public',
-          table: 'inventory'
-        }, 
-        (payload) => {
-          console.log('Inventory update received:', payload);
+    const fetchInventory = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('inventory')
+          .select('*')
+          .order('last_updated', { ascending: false });
           
-          if (payload.eventType === 'INSERT') {
-            setInventory(prev => [payload.new, ...prev]);
-            
-            // Check if new item has low stock
-            if (payload.new.quantity <= 5) {
-              const newAlert = {
-                id: Date.now(),
-                type: 'low-stock',
-                item: payload.new.name,
-                quantity: payload.new.quantity,
-                timestamp: new Date().toISOString()
-              };
-              setAlerts(prev => [newAlert, ...prev]);
-              toast.warning(`Low inventory alert: ${payload.new.name} is running low (${payload.new.quantity} remaining)`);
-            }
-          } else if (payload.eventType === 'UPDATE') {
-            setInventory(prev => 
-              prev.map(item => 
-                item.id === payload.new.id ? payload.new : item
-              )
-            );
-            
-            // Check if updated item now has low stock
-            if (payload.new.quantity <= 5 && (payload.old.quantity > 5 || payload.old.quantity !== payload.new.quantity)) {
-              const newAlert = {
-                id: Date.now(),
-                type: 'low-stock',
-                item: payload.new.name,
-                quantity: payload.new.quantity,
-                timestamp: new Date().toISOString()
-              };
-              setAlerts(prev => [newAlert, ...prev]);
-              toast.warning(`Low inventory alert: ${payload.new.name} is running low (${payload.new.quantity} remaining)`);
-            }
-            
-            // Check if item was out of stock but now has stock
-            if (payload.old.quantity === 0 && payload.new.quantity > 0) {
-              const newAlert = {
-                id: Date.now(),
-                type: 'restocked',
-                item: payload.new.name,
-                quantity: payload.new.quantity,
-                timestamp: new Date().toISOString()
-              };
-              setAlerts(prev => [newAlert, ...prev]);
-              toast.success(`${payload.new.name} has been restocked (${payload.new.quantity} units)`);
-            }
-          } else if (payload.eventType === 'DELETE') {
-            setInventory(prev => 
-              prev.filter(item => item.id !== payload.old.id)
-            );
-          }
+        if (error) {
+          console.error('Error fetching inventory:', error);
+          toast.error("Failed to load inventory items");
+          return;
         }
-      )
-      .subscribe();
-      
-    return () => {
-      supabase.removeChannel(inventorySubscription);
+        
+        setInventory(data || []);
+      } catch (error) {
+        console.error('Error in inventory fetch:', error);
+        toast.error("Error loading inventory data");
+      } finally {
+        setLoading(false);
+      }
     };
+    
+    fetchInventory();
   }, []);
 
-  const fetchInventory = async () => {
+  const openModal = (item = null) => {
+    if (item) {
+      setEditingItem(item);
+      setFormData({
+        name: item.name,
+        category: item.category,
+        quantity: item.quantity
+      });
+    } else {
+      setEditingItem(null);
+      setFormData({
+        name: '',
+        category: 'Paper',
+        quantity: 0
+      });
+    }
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingItem(null);
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.name) {
+      toast.error("Please enter item name");
+      return;
+    }
+    
     try {
-      setLoading(true);
+      const status = parseInt(formData.quantity) > 0 ? 'In Stock' : 'Out of Stock';
       
-      const { data, error } = await supabase
+      if (editingItem) {
+        // Update existing inventory item
+        const { error } = await supabase
+          .from('inventory')
+          .update({
+            name: formData.name,
+            category: formData.category,
+            quantity: parseInt(formData.quantity),
+            status: status,
+            last_updated: new Date().toISOString()
+          })
+          .eq('id', editingItem.id);
+          
+        if (error) throw error;
+        
+        setInventory(prev => 
+          prev.map(item => 
+            item.id === editingItem.id 
+              ? { 
+                  ...item, 
+                  name: formData.name,
+                  category: formData.category,
+                  quantity: parseInt(formData.quantity),
+                  status: status,
+                  last_updated: new Date().toISOString()
+                }
+              : item
+          )
+        );
+        
+        toast.success("Item updated successfully");
+      } else {
+        // Add new inventory item
+        const { data, error } = await supabase
+          .from('inventory')
+          .insert({
+            name: formData.name,
+            category: formData.category,
+            quantity: parseInt(formData.quantity),
+            status: status
+          })
+          .select()
+          .single();
+          
+        if (error) throw error;
+        
+        setInventory(prev => [data, ...prev]);
+        toast.success("Item added successfully");
+      }
+      
+      closeModal();
+    } catch (error) {
+      console.error("Error saving inventory item:", error);
+      toast.error(error.message || "Failed to save item");
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this item?")) {
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
         .from('inventory')
-        .select('*')
-        .order('last_updated', { ascending: false });
-      
+        .delete()
+        .eq('id', id);
+        
       if (error) throw error;
       
-      setInventory(data || []);
-      
-      // Generate initial alerts for low stock items
-      const lowStockItems = data?.filter(item => item.quantity <= 5) || [];
-      if (lowStockItems.length > 0) {
-        const newAlerts = lowStockItems.map(item => ({
-          id: Date.now() + item.id,
-          type: 'low-stock',
-          item: item.name,
-          quantity: item.quantity,
-          timestamp: new Date().toISOString()
-        }));
-        setAlerts(newAlerts);
-      }
+      setInventory(prev => prev.filter(item => item.id !== id));
+      toast.success("Item removed successfully");
     } catch (error) {
-      console.error('Error fetching inventory:', error);
-      toast.error('Failed to load inventory data');
-    } finally {
-      setLoading(false);
+      console.error("Error deleting inventory item:", error);
+      toast.error(error.message || "Failed to delete item");
     }
   };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Out of Stock':
-        return 'text-red-600 bg-red-100';
-      case 'Low Stock':
-        return 'text-amber-600 bg-amber-100';
-      case 'Limited Stock':
-        return 'text-blue-600 bg-blue-100';
-      case 'In Stock':
-        return 'text-green-600 bg-green-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Unknown';
-    const options = { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' };
-    return new Date(dateString).toLocaleString('en-US', options);
-  };
-
-  // Get counts for dashboard
-  const lowStockCount = inventory.filter(item => item.quantity <= 5).length;
-  const outOfStockCount = inventory.filter(item => item.quantity === 0).length;
-  const totalItems = inventory.length;
-  const healthyStockCount = totalItems - lowStockCount - outOfStockCount;
 
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-bold mb-6">Inventory Status</h2>
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-bold">Inventory Items</h2>
+        
+        <button
+          onClick={() => openModal()}
+          className="flex items-center bg-primary text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
+        >
+          <Plus className="h-5 w-5 mr-1" />
+          Add Item
+        </button>
+      </div>
       
       {loading ? (
         <div className="text-center py-10">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-          <p className="mt-2 text-gray-500">Loading inventory status...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-gray-500">Loading inventory...</p>
         </div>
       ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Total Items</p>
-                  <p className="text-2xl font-bold">{totalItems}</p>
-                </div>
-                <div className="bg-primary/10 p-3 rounded-full">
-                  <Package className="h-6 w-6 text-primary" />
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Healthy Stock</p>
-                  <p className="text-2xl font-bold text-green-600">{healthyStockCount}</p>
-                </div>
-                <div className="bg-green-100 p-3 rounded-full">
-                  <div className="h-6 w-6 text-green-600 flex items-center justify-center">✓</div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Low Stock</p>
-                  <p className="text-2xl font-bold text-amber-600">{lowStockCount}</p>
-                </div>
-                <div className="bg-amber-100 p-3 rounded-full">
-                  <AlertTriangle className="h-6 w-6 text-amber-600" />
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Out of Stock</p>
-                  <p className="text-2xl font-bold text-red-600">{outOfStockCount}</p>
-                </div>
-                <div className="bg-red-100 p-3 rounded-full">
-                  <AlertCircle className="h-6 w-6 text-red-600" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-                <div className="px-6 py-4 border-b">
-                  <h3 className="font-medium">Current Inventory</h3>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      <tr>
-                        <th className="px-6 py-3 text-left">Item</th>
-                        <th className="px-6 py-3 text-left">Category</th>
-                        <th className="px-6 py-3 text-center">Quantity</th>
-                        <th className="px-6 py-3 text-left">Status</th>
-                        <th className="px-6 py-3 text-left">Last Updated</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 text-sm">
-                      {inventory.length === 0 ? (
-                        <tr>
-                          <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
-                            No inventory items found
-                          </td>
-                        </tr>
-                      ) : (
-                        inventory.map(item => (
-                          <tr key={item.id}>
-                            <td className="px-6 py-3 font-medium">{item.name}</td>
-                            <td className="px-6 py-3 text-gray-600">{item.category}</td>
-                            <td className="px-6 py-3 text-center">{item.quantity}</td>
-                            <td className="px-6 py-3">
-                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
-                                {item.status === 'Low Stock' && <AlertTriangle className="h-3 w-3 mr-1" />}
-                                {item.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-3 text-gray-600">{formatDate(item.last_updated)}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-            
-            <div>
-              <div className="bg-white rounded-lg shadow-sm border h-full">
-                <div className="px-6 py-4 border-b">
-                  <h3 className="font-medium">Inventory Alerts</h3>
-                </div>
-                <div className="overflow-y-auto" style={{ maxHeight: '400px' }}>
-                  {alerts.length === 0 ? (
-                    <div className="p-6 text-center text-gray-500">
-                      <div className="bg-gray-50 p-4 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
-                        <Package className="h-8 w-8 text-gray-400" />
-                      </div>
-                      <p>No alerts at this time</p>
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead>
+              <tr className="border-b">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {inventory.map((item) => (
+                <tr key={item.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="font-medium text-gray-900">{item.name}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                    {item.category}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                    {item.quantity}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      item.status === 'In Stock' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {item.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex space-x-2">
+                      <button 
+                        onClick={() => openModal(item)}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        <Edit className="h-5 w-5" />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(item.id)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash className="h-5 w-5" />
+                      </button>
                     </div>
-                  ) : (
-                    <div className="divide-y">
-                      {alerts.map(alert => (
-                        <div key={alert.id} className="p-4">
-                          <div className="flex items-start">
-                            {alert.type === 'low-stock' ? (
-                              <AlertTriangle className="h-5 w-5 text-amber-500 mr-3 mt-0.5" />
-                            ) : (
-                              <Package className="h-5 w-5 text-green-500 mr-3 mt-0.5" />
-                            )}
-                            
-                            <div>
-                              <p className="font-medium">
-                                {alert.type === 'low-stock' ? 'Low Stock Alert' : 'Item Restocked'}
-                              </p>
-                              <p className="text-sm text-gray-600 mt-1">
-                                {alert.type === 'low-stock' 
-                                  ? `${alert.item} is running low (${alert.quantity} remaining)` 
-                                  : `${alert.item} has been restocked (${alert.quantity} units)`}
-                              </p>
-                              <p className="text-xs text-gray-500 mt-2">
-                                {formatDate(alert.timestamp)}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+                  </td>
+                </tr>
+              ))}
+              
+              {inventory.length === 0 && (
+                <tr>
+                  <td colSpan="5" className="px-6 py-10 text-center text-gray-500">
+                    No inventory items found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+      
+      {/* Add/Edit Item Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
+            <div className="flex justify-between items-center border-b px-6 py-4">
+              <h3 className="text-lg font-medium">{editingItem ? 'Edit Item' : 'Add New Item'}</h3>
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-500">
+                <X className="h-5 w-5" />
+              </button>
             </div>
+            
+            <form onSubmit={handleSubmit} className="p-6">
+              <div className="mb-4">
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Item Name
+                </label>
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded-md focus:ring-primary focus:border-primary"
+                  placeholder="Enter item name"
+                />
+              </div>
+              
+              <div className="mb-4">
+                <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+                  Category
+                </label>
+                <select
+                  id="category"
+                  name="category"
+                  value={formData.category}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded-md focus:ring-primary focus:border-primary"
+                >
+                  <option value="Paper">Paper</option>
+                  <option value="Ink">Ink</option>
+                  <option value="Toner">Toner</option>
+                  <option value="Accessories">Accessories</option>
+                </select>
+              </div>
+              
+              <div className="mb-6">
+                <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
+                  Quantity
+                </label>
+                <input
+                  id="quantity"
+                  name="quantity"
+                  type="number"
+                  min="0"
+                  value={formData.quantity}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded-md focus:ring-primary focus:border-primary"
+                />
+              </div>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="px-4 py-2 border rounded-md text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-primary text-white rounded-md hover:bg-indigo-700"
+                >
+                  {editingItem ? 'Update' : 'Add'}
+                </button>
+              </div>
+            </form>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
 };
 
-export default InventoryStatus;
+export default InventoryManagement;

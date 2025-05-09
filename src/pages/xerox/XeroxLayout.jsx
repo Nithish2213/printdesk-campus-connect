@@ -2,17 +2,11 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePrint } from '../../contexts/PrintContext';
 import XeroxSidebar from '../../components/XeroxSidebar';
 
 const XeroxLayout = () => {
-  const auth = useAuth();
-  
-  // Safely handle possible undefined auth context
-  if (!auth) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  const { currentUser } = auth;
+  const { currentUser } = useAuth();
   
   // Protect route - only for xerox staff
   if (!currentUser || currentUser.role !== 'xerox') {
